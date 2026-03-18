@@ -2,14 +2,41 @@ import cv2
 import face_recognition
 import pickle
 import os
+from database.sqlite_manager import initialize_database, save_user_biometric
+
+
+def abrir_camara():
+    # En Windows, CAP_DSHOW suele ser mas estable que MSMF con algunas webcams.
+    intentos = [
+        (0, cv2.CAP_DSHOW),
+        (1, cv2.CAP_DSHOW),
+        (0, cv2.CAP_MSMF),
+        (1, cv2.CAP_MSMF),
+        (0, None),
+        (1, None),
+    ]
+
+    for indice, backend in intentos:
+        cap = cv2.VideoCapture(indice) if backend is None else cv2.VideoCapture(indice, backend)
+        if cap.isOpened():
+            return cap
+        cap.release()
+
+    return None
 
 def registrar_usuario():
+    initialize_database()
+
     # Crear carpeta de datos si no existe
     if not os.path.exists('data'):
         os.makedirs('data')
 
     nombre = input("Introduce el nombre del usuario: ").lower()
-    cap = cv2.VideoCapture(0)
+    cap = abrir_camara()
+
+    if cap is None:
+        print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
+        return
 
     print(f"Registrando a {nombre}. Presiona 'S' para capturar o 'Q' para salir.")
 
@@ -41,8 +68,11 @@ def registrar_usuario():
             if len(boxes) == 1:
                 # Extraer encoding
                 encoding = face_recognition.face_encodings(rgb_frame, boxes)[0]
+
+                # Guardar en SQLite (fuente principal)
+                save_user_biometric(nombre, encoding)
                 
-                # Guardar en archivo .pkl
+                # Guardar respaldo en .pkl
                 with open(f"data/{nombre}.pkl", "wb") as f:
                     pickle.dump(encoding, f)
                 

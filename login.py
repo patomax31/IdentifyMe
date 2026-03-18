@@ -2,6 +2,27 @@ import cv2
 import face_recognition
 import pickle
 import os
+from database.sqlite_manager import initialize_database, load_biometrics, log_access, migrate_pickle_biometrics
+
+
+def abrir_camara():
+    # En Windows, CAP_DSHOW suele ser mas estable que MSMF con algunas webcams.
+    intentos = [
+        (0, cv2.CAP_DSHOW),
+        (1, cv2.CAP_DSHOW),
+        (0, cv2.CAP_MSMF),
+        (1, cv2.CAP_MSMF),
+        (0, None),
+        (1, None),
+    ]
+
+    for indice, backend in intentos:
+        cap = cv2.VideoCapture(indice) if backend is None else cv2.VideoCapture(indice, backend)
+        if cap.isOpened():
+            return cap
+        cap.release()
+
+    return None
 
 def cargar_base_datos():
     rostros = []
@@ -14,8 +35,20 @@ def cargar_base_datos():
     return rostros, nombres
 
 def login():
-    rostros_db, nombres_db = cargar_base_datos()
-    cap = cv2.VideoCapture(0)
+    initialize_database()
+    migrate_pickle_biometrics("data")
+    rostros_db, nombres_db, ids_db = load_biometrics()
+
+    # Compatibilidad: usar archivos .pkl si aun no hay biometria en SQLite.
+    if not rostros_db:
+        rostros_db, nombres_db = cargar_base_datos()
+        ids_db = [0] * len(nombres_db)
+
+    cap = abrir_camara()
+
+    if cap is None:
+        print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
+        return
 
     while True:
         ret, frame = cap.read()
@@ -45,6 +78,8 @@ def login():
                 nombre_usuario = nombres_db[idx].upper()
                 mensaje = f"ACCESO CONCEDIDO: {nombre_usuario}"
                 color_oval = (0, 255, 0) # Verde
+                if idx < len(ids_db) and ids_db[idx] > 0:
+                    log_access(ids_db[idx], True)
             else:
                 mensaje = "ACCESO DENEGADO"
                 color_oval = (0, 0, 255) # Rojo

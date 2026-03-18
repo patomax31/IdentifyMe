@@ -7,6 +7,8 @@ Sistema biométrico facial embebido para la identificación y verificación de u
 - `login.py` – Módulo de ejecución para iniciar el sistema de login por reconocimiento facial.
 - `registrar.py` – Script para registrar un nuevo usuario (extrae y guarda su encoding facial).
 - `data/` – Carpeta donde se almacenan los archivos `.pkl` con los encodings de cada usuario.
+- `database/script.sql` – Esquema SQLite del sistema.
+- `database/face_recognition.db` – Base de datos SQLite generada automaticamente al ejecutar el sistema.
 - `test.py` – Verifica que las librerías necesarias (OpenCV, dlib, numpy) estén instaladas.
 
 ## ✅ Requisitos (dependencias)
@@ -42,6 +44,12 @@ pip install opencv-python face_recognition dlib numpy
 ```
 
 > 🔍 `face_recognition` depende de `dlib`, que a su vez requiere compilación en algunos sistemas. Si tienes problemas en Windows, busca instalación de `dlib` con ruedas precompiladas.
+
+## 🗄️ Base de datos SQLite
+
+- El sistema inicializa automaticamente la base de datos desde `database/script.sql`.
+- El registro guarda biometria en SQLite (tabla `datos_biometricos`) y conserva un respaldo en `data/*.pkl`.
+- Al iniciar login, los `.pkl` existentes se migran automaticamente a SQLite.
 
 ## 🚀 Uso
 
