@@ -5,8 +5,8 @@ Sistema biométrico facial embebido para la identificación y verificación de u
 ## 📌 Estructura del proyecto
 
 - `login.py` – Módulo de ejecución para iniciar el sistema de login por reconocimiento facial.
-- `registrar.py` – Script para registrar un nuevo usuario (extrae y guarda su encoding facial).
-- `data/` – Carpeta donde se almacenan los archivos `.pkl` con los encodings de cada usuario.
+- `registrar.py` – Script para registrar un nuevo estudiante (grupo + biometria facial).
+- `data/` – Carpeta de respaldo con archivos `.pkl` (formato `est_<id>.pkl`).
 - `database/script.sql` – Esquema SQLite del sistema.
 - `database/face_recognition.db` – Base de datos SQLite generada automaticamente al ejecutar el sistema.
 - `test.py` – Verifica que las librerías necesarias (OpenCV, dlib, numpy) estén instaladas.
@@ -48,12 +48,12 @@ pip install opencv-python face_recognition dlib numpy
 ## 🗄️ Base de datos SQLite
 
 - El sistema inicializa automaticamente la base de datos desde `database/script.sql`.
-- El registro guarda biometria en SQLite (tabla `datos_biometricos`) y conserva un respaldo en `data/*.pkl`.
-- Al iniciar login, los `.pkl` existentes se migran automaticamente a SQLite.
+- El registro guarda biometria en SQLite (tabla `datos_biometricos`) para `ESTUDIANTE` y conserva un respaldo en `data/*.pkl`.
+- En la version local, el login usa SQLite como fuente principal y solo usa `.pkl` como compatibilidad si aun no hay biometria en BD.
 
 ## 🚀 Uso
 
-### 1) Registrar un usuario
+### 1) Registrar un estudiante
 
 Ejecuta el script de registro y sigue las instrucciones en pantalla:
 
@@ -62,9 +62,10 @@ python registrar.py
 ```
 
 - Se abrirá la cámara y verás un óvalo guía.
+- Captura primero los datos del grupo: grado, letra y turno.
 - Coloca tu rostro dentro del óvalo.
 - Presiona `S` para capturar y guardar el encoding.
-- El encoding se guardará como `data/<nombre>.pkl`.
+- El encoding se guardará en SQLite y en `data/est_<id>.pkl` como respaldo.
 
 ### 2) Iniciar la sesión (login)
 
@@ -74,8 +75,8 @@ Ejecuta el script de login:
 python login.py
 ```
 
-- El sistema buscará tu rostro en la base de datos (los archivos `.pkl` en `data/`).
-- Si encuentra una coincidencia, mostrará `ACCESO CONCEDIDO` con el nombre.
+- El sistema buscará el rostro en SQLite (estudiantes activos).
+- Si encuentra una coincidencia, mostrará `ACCESO CONCEDIDO` con grupo e identificador interno.
 - Si no, mostrará `ACCESO DENEGADO`.
 - Presiona `q` para cerrar la ventana.
 
@@ -92,3 +93,9 @@ python test.py
 - Usa buena iluminación para mejorar la detección facial.
 - Asegúrate de que solo haya un rostro en el cuadro al capturar el encoding.
 - Si tienes problemas con la cámara, prueba con otro dispositivo o controla que no esté siendo utilizada por otra aplicación.
+- Si tienes más de una cámara, puedes seleccionar índice con variable de entorno: `set CAMERA_INDEX=1` (Windows CMD) o `$env:CAMERA_INDEX=1` (PowerShell).
+- Perfil de cámara dual con `CAMERA_PROFILE`:
+	- `WINDOWS_STABLE` para desarrollo en Windows (DirectShow).
+	- `RASPBERRY_PI` para despliegue en Linux/Raspberry Pi (V4L2).
+	- `AUTO` (valor por defecto) detecta por sistema operativo.
+- Variables opcionales de rendimiento: `CAMERA_WIDTH`, `CAMERA_HEIGHT`, `CAMERA_FPS`.

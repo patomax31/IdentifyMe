@@ -1,7 +1,6 @@
 import json
 import os
 import sqlite3
-import hashlib
 import pickle
 from typing import List, Tuple
 
@@ -15,15 +14,6 @@ def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
-
-
-def _slugify(text: str) -> str:
-    return "".join(c for c in text.lower() if c.isalnum()) or "usuario"
-
-
-def _name_to_employee_code(name: str) -> str:
-    digest = hashlib.sha1(name.encode("utf-8")).hexdigest()[:8]
-    return f"EMP-{digest.upper()}"
 
 
 def _encoding_to_text(encoding) -> str:
@@ -44,11 +34,88 @@ def initialize_database() -> None:
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'grupos'"
         ).fetchone()
 
-        if existe_grupos:
+        if not existe_grupos:
+            with open(SCHEMA_PATH, "r", encoding="utf-8") as schema_file:
+                conn.executescript(schema_file.read())
             return
 
-        with open(SCHEMA_PATH, "r", encoding="utf-8") as schema_file:
-            conn.executescript(schema_file.read())
+        _migrate_local_schema(conn)
+
+
+def _migrate_local_schema(conn: sqlite3.Connection) -> None:
+    # Elimina tablas obsoletas de la version conectada a internet.
+    conn.execute("DROP TABLE IF EXISTS estudiante_tutor")
+    conn.execute("DROP TABLE IF EXISTS tutores")
+
+    # Si estudiantes tiene columnas legacy (matricula/nombre/apellidos), se reconstruye.
+    estudiantes_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(estudiantes)").fetchall()
+    }
+    if {"matricula", "nombre", "apellidos"}.issubset(estudiantes_columns):
+        conn.execute(
+            """
+            CREATE TABLE estudiantes_new (
+                id_estudiante INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_grupo INTEGER NOT NULL,
+                estado_activo INTEGER NOT NULL DEFAULT 1 CHECK (estado_activo IN (0, 1)),
+                FOREIGN KEY (id_grupo) REFERENCES grupos(id_grupo) ON DELETE RESTRICT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO estudiantes_new (id_estudiante, id_grupo, estado_activo)
+            SELECT id_estudiante, id_grupo, estado_activo
+            FROM estudiantes
+            """
+        )
+        conn.execute("DROP TABLE estudiantes")
+        conn.execute("ALTER TABLE estudiantes_new RENAME TO estudiantes")
+
+    # Si logs_acceso aun depende de id_dispositivo, se reconstruye sin esa columna.
+    log_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(logs_acceso)").fetchall()
+    }
+    if "id_dispositivo" in log_columns:
+        conn.execute(
+            """
+            CREATE TABLE logs_acceso_new (
+                id_log INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo_usuario TEXT NOT NULL CHECK (tipo_usuario IN ('ESTUDIANTE', 'PERSONAL')),
+                id_usuario_ref INTEGER NOT NULL,
+                fecha_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
+                tipo_evento TEXT NOT NULL CHECK (tipo_evento IN ('Entrada', 'Salida')),
+                acceso_concedido INTEGER NOT NULL CHECK (acceso_concedido IN (0, 1))
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO logs_acceso_new (
+                id_log, tipo_usuario, id_usuario_ref, fecha_hora, tipo_evento, acceso_concedido
+            )
+            SELECT id_log, tipo_usuario, id_usuario_ref, fecha_hora, tipo_evento, acceso_concedido
+            FROM logs_acceso
+            """
+        )
+        conn.execute("DROP TABLE logs_acceso")
+        conn.execute("ALTER TABLE logs_acceso_new RENAME TO logs_acceso")
+
+    conn.execute("DROP TABLE IF EXISTS dispositivos_raspberry")
+
+    # Asegura indices clave para consultas frecuentes en Raspberry Pi.
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_datos_biometricos_usuario
+        ON datos_biometricos (tipo_usuario, id_usuario_ref)
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS ix_logs_acceso_usuario_fecha
+        ON logs_acceso (tipo_usuario, id_usuario_ref, fecha_hora DESC)
+        """
+    )
 
 
 def _ensure_default_group(conn: sqlite3.Connection) -> int:
@@ -63,108 +130,118 @@ def _ensure_default_group(conn: sqlite3.Connection) -> int:
     return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 
-def _ensure_personal(conn: sqlite3.Connection, nombre_usuario: str) -> int:
+def _ensure_group(conn: sqlite3.Connection, grado: int, letra: str, turno: str) -> int:
+    letra_norm = letra.strip().upper()[:1]
+    turno_norm = turno.strip().upper()
+
     row = conn.execute(
-        "SELECT id_personal FROM personal_administrativo WHERE nombre_completo = ?",
-        (nombre_usuario,),
+        "SELECT id_grupo FROM grupos WHERE grado = ? AND letra = ? AND turno = ?",
+        (grado, letra_norm, turno_norm),
     ).fetchone()
     if row:
         return row[0]
 
-    slug = _slugify(nombre_usuario)
-    num_empleado = _name_to_employee_code(nombre_usuario)
-    correo = f"{slug}@sistema.local"
-
     conn.execute(
-        """
-        INSERT INTO personal_administrativo (
-            num_empleado, nombre_completo, rol, correo, password_hash, estado_activo
-        ) VALUES (?, ?, ?, ?, ?, 1)
-        """,
-        (num_empleado, nombre_usuario, "OPERADOR", correo, "N/A"),
+        "INSERT INTO grupos (grado, letra, turno) VALUES (?, ?, ?)",
+        (grado, letra_norm, turno_norm),
     )
     return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 
-def save_user_biometric(nombre_usuario: str, encoding) -> None:
+def create_student(grado: int, letra: str, turno: str) -> int:
     initialize_database()
 
     with _connect() as conn:
-        id_personal = _ensure_personal(conn, nombre_usuario)
-        vector_text = _encoding_to_text(encoding)
-
+        id_grupo = _ensure_group(conn, grado, letra, turno)
         conn.execute(
-            "DELETE FROM datos_biometricos WHERE tipo_usuario = 'PERSONAL' AND id_usuario_ref = ?",
-            (id_personal,),
-        )
-        conn.execute(
-            """
-            INSERT INTO datos_biometricos (tipo_usuario, id_usuario_ref, vector_facial)
-            VALUES ('PERSONAL', ?, ?)
-            """,
-            (id_personal, vector_text),
-        )
-
-
-def load_biometrics() -> Tuple[List, List[str], List[int]]:
-    initialize_database()
-
-    encodings = []
-    nombres = []
-    user_ids = []
-
-    with _connect() as conn:
-        rows = conn.execute(
-            """
-            SELECT p.id_personal, p.nombre_completo, d.vector_facial
-            FROM datos_biometricos d
-            JOIN personal_administrativo p ON p.id_personal = d.id_usuario_ref
-            WHERE d.tipo_usuario = 'PERSONAL' AND p.estado_activo = 1
-            """
-        ).fetchall()
-
-    for user_id, nombre, vector_text in rows:
-        encodings.append(_text_to_encoding(vector_text))
-        nombres.append(nombre)
-        user_ids.append(user_id)
-
-    return encodings, nombres, user_ids
-
-
-def ensure_device(mac_address: str = "LOCAL-DEVICE", ubicacion: str = "ACCESO_PRINCIPAL") -> int:
-    initialize_database()
-
-    with _connect() as conn:
-        row = conn.execute(
-            "SELECT id_dispositivo FROM dispositivos_raspberry WHERE mac_address = ?",
-            (mac_address,),
-        ).fetchone()
-        if row:
-            return row[0]
-
-        conn.execute(
-            "INSERT INTO dispositivos_raspberry (mac_address, ubicacion, estado_red) VALUES (?, ?, 1)",
-            (mac_address, ubicacion),
+            "INSERT INTO estudiantes (id_grupo, estado_activo) VALUES (?, 1)",
+            (id_grupo,),
         )
         return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 
-def log_access(id_usuario_ref: int, acceso_concedido: bool, tipo_evento: str = "Entrada") -> None:
+def save_student_biometric(id_estudiante: int, encoding) -> None:
     initialize_database()
-    id_dispositivo = ensure_device()
+
+    with _connect() as conn:
+        vector_text = _encoding_to_text(encoding)
+
+        conn.execute(
+            "DELETE FROM datos_biometricos WHERE tipo_usuario = 'ESTUDIANTE' AND id_usuario_ref = ?",
+            (id_estudiante,),
+        )
+        conn.execute(
+            """
+            INSERT INTO datos_biometricos (tipo_usuario, id_usuario_ref, vector_facial)
+            VALUES ('ESTUDIANTE', ?, ?)
+            """,
+            (id_estudiante, vector_text),
+        )
+
+
+def load_student_biometrics() -> Tuple[List, List[str], List[int]]:
+    initialize_database()
+
+    encodings = []
+    etiquetas = []
+    student_ids = []
+
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT e.id_estudiante, g.grado, g.letra, g.turno, d.vector_facial
+            FROM datos_biometricos d
+            JOIN estudiantes e ON e.id_estudiante = d.id_usuario_ref
+            JOIN grupos g ON g.id_grupo = e.id_grupo
+            WHERE d.tipo_usuario = 'ESTUDIANTE' AND e.estado_activo = 1
+            """
+        ).fetchall()
+
+    for student_id, grado, letra, turno, vector_text in rows:
+        encodings.append(_text_to_encoding(vector_text))
+        etiquetas.append(f"{grado}{letra}-{turno} #{student_id}")
+        student_ids.append(student_id)
+
+    return encodings, etiquetas, student_ids
+
+
+def log_access(
+    id_usuario_ref: int,
+    acceso_concedido: bool,
+    tipo_evento: str = "Entrada",
+    tipo_usuario: str = "ESTUDIANTE",
+) -> None:
+    initialize_database()
+
+    tipo_usuario_norm = tipo_usuario.upper()
+    if tipo_usuario_norm not in {"ESTUDIANTE", "PERSONAL"}:
+        raise ValueError("tipo_usuario debe ser 'ESTUDIANTE' o 'PERSONAL'")
 
     with _connect() as conn:
         conn.execute(
             """
             INSERT INTO logs_acceso (
-                tipo_usuario, id_usuario_ref, id_dispositivo, tipo_evento, acceso_concedido
-            ) VALUES ('PERSONAL', ?, ?, ?, ?)
+                tipo_usuario, id_usuario_ref, tipo_evento, acceso_concedido
+            ) VALUES (?, ?, ?, ?)
             """,
-            (id_usuario_ref, id_dispositivo, tipo_evento, 1 if acceso_concedido else 0),
+            (tipo_usuario_norm, id_usuario_ref, tipo_evento, 1 if acceso_concedido else 0),
         )
 
 
-def migrate_pickle_biometrics(data_dir: str) -> int:
+def _student_exists(conn: sqlite3.Connection, id_estudiante: int) -> bool:
+    row = conn.execute(
+        "SELECT id_estudiante FROM estudiantes WHERE id_estudiante = ?",
+        (id_estudiante,),
+    ).fetchone()
+    return row is not None
+
+
+def migrate_pickle_biometrics(
+    data_dir: str,
+    default_grado: int = 1,
+    default_letra: str = "A",
+    default_turno: str = "MATUTINO",
+) -> int:
     initialize_database()
 
     if not os.path.isdir(data_dir):
@@ -181,7 +258,19 @@ def migrate_pickle_biometrics(data_dir: str) -> int:
         with open(ruta, "rb") as f:
             encoding = pickle.load(f)
 
-        save_user_biometric(nombre, encoding)
+        id_estudiante = None
+        if nombre.lower().startswith("est_"):
+            posible_id = nombre[4:]
+            if posible_id.isdigit():
+                with _connect() as conn:
+                    candidato = int(posible_id)
+                    if _student_exists(conn, candidato):
+                        id_estudiante = candidato
+
+        if id_estudiante is None:
+            id_estudiante = create_student(default_grado, default_letra, default_turno)
+
+        save_student_biometric(id_estudiante, encoding)
         migrados += 1
 
     return migrados

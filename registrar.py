@@ -2,27 +2,67 @@ import cv2
 import face_recognition
 import pickle
 import os
-from database.sqlite_manager import initialize_database, save_user_biometric
+from database.sqlite_manager import initialize_database, create_student, save_student_biometric
 
 
 def abrir_camara():
-    # En Windows, CAP_DSHOW suele ser mas estable que MSMF con algunas webcams.
-    intentos = [
-        (0, cv2.CAP_DSHOW),
-        (1, cv2.CAP_DSHOW),
-        (0, cv2.CAP_MSMF),
-        (1, cv2.CAP_MSMF),
-        (0, None),
-        (1, None),
-    ]
+    # Perfil dual:
+    # - WINDOWS_STABLE: evita bloqueos usando DirectShow.
+    # - RASPBERRY_PI: prioriza V4L2 para camara local embebida.
+    camera_index = int(os.getenv("CAMERA_INDEX", "0"))
+    profile = os.getenv("CAMERA_PROFILE", "AUTO").strip().upper()
+    if profile == "AUTO":
+        profile = "WINDOWS_STABLE" if os.name == "nt" else "RASPBERRY_PI"
+
+    if profile == "WINDOWS_STABLE":
+        intentos = [
+            (camera_index, cv2.CAP_DSHOW),
+            (1 - camera_index, cv2.CAP_DSHOW),
+        ]
+    else:
+        intentos = [
+            (camera_index, cv2.CAP_V4L2),
+            (1 - camera_index, cv2.CAP_V4L2),
+            (camera_index, None),
+        ]
 
     for indice, backend in intentos:
         cap = cv2.VideoCapture(indice) if backend is None else cv2.VideoCapture(indice, backend)
         if cap.isOpened():
+            # Ajustes de captura para balancear consumo/rendimiento en embebido.
+            width = int(os.getenv("CAMERA_WIDTH", "640"))
+            height = int(os.getenv("CAMERA_HEIGHT", "480"))
+            fps = int(os.getenv("CAMERA_FPS", "20"))
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+            cap.set(cv2.CAP_PROP_FPS, fps)
             return cap
         cap.release()
 
     return None
+
+
+def solicitar_datos_grupo():
+    while True:
+        grado_raw = input("Grado del estudiante (1-3): ").strip()
+        if grado_raw in {"1", "2", "3"}:
+            grado = int(grado_raw)
+            break
+        print("Dato invalido. El grado debe ser 1, 2 o 3.")
+
+    while True:
+        letra = input("Letra del grupo (A-Z): ").strip().upper()
+        if len(letra) == 1 and letra.isalpha():
+            break
+        print("Dato invalido. Ingresa una sola letra (A-Z).")
+
+    while True:
+        turno = input("Turno (MATUTINO/VESPERTINO): ").strip().upper()
+        if turno in {"MATUTINO", "VESPERTINO"}:
+            break
+        print("Dato invalido. Usa MATUTINO o VESPERTINO.")
+
+    return grado, letra, turno
 
 def registrar_usuario():
     initialize_database()
@@ -31,14 +71,14 @@ def registrar_usuario():
     if not os.path.exists('data'):
         os.makedirs('data')
 
-    nombre = input("Introduce el nombre del usuario: ").lower()
+    grado, letra, turno = solicitar_datos_grupo()
     cap = abrir_camara()
 
     if cap is None:
         print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
         return
 
-    print(f"Registrando a {nombre}. Presiona 'S' para capturar o 'Q' para salir.")
+    print(f"Registrando estudiante de {grado}{letra}-{turno}. Presiona 'S' para capturar o 'Q' para salir.")
 
     while True:
         ret, frame = cap.read()
@@ -69,14 +109,17 @@ def registrar_usuario():
                 # Extraer encoding
                 encoding = face_recognition.face_encodings(rgb_frame, boxes)[0]
 
+                id_estudiante = create_student(grado, letra, turno)
+
                 # Guardar en SQLite (fuente principal)
-                save_user_biometric(nombre, encoding)
+                save_student_biometric(id_estudiante, encoding)
                 
                 # Guardar respaldo en .pkl
-                with open(f"data/{nombre}.pkl", "wb") as f:
+                nombre_archivo = f"est_{id_estudiante}.pkl"
+                with open(f"data/{nombre_archivo}", "wb") as f:
                     pickle.dump(encoding, f)
                 
-                print(f"¡Éxito! Usuario '{nombre}' registrado.")
+                print(f"Registro exitoso. Estudiante #{id_estudiante} ({grado}{letra}-{turno}).")
                 break
             else:
                 print("Error: Asegúrate de que solo haya UN rostro y esté bien iluminado.")
