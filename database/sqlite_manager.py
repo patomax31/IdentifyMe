@@ -148,14 +148,14 @@ def _ensure_group(conn: sqlite3.Connection, grado: int, letra: str, turno: str) 
     return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 
-def create_student(grado: int, letra: str, turno: str) -> int:
+def create_student(nombre: str, grado: int, letra: str, turno: str) -> int:
     initialize_database()
 
     with _connect() as conn:
         id_grupo = _ensure_group(conn, grado, letra, turno)
         conn.execute(
-            "INSERT INTO estudiantes (id_grupo, estado_activo) VALUES (?, 1)",
-            (id_grupo,),
+            "INSERT INTO estudiantes (nombre, id_grupo, estado_activo) VALUES (?, ?, 1)",
+            (nombre.upper(), id_grupo),
         )
         return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
@@ -205,10 +205,10 @@ def load_student_biometrics() -> Tuple[List, List[str], List[int]]:
     return encodings, etiquetas, student_ids
 
 
-def get_student_info(id_estudiante: int) -> Tuple[int, str, str, str]:
+def get_student_info(id_estudiante: int) -> Tuple[int, str, str, str, str]:
     """
-    Obtiene información del estudiante (grado, letra, turno).
-    Retorna: (id_estudiante, grado, letra, turno)
+    Obtiene información del estudiante (nombre, grado, letra, turno).
+    Retorna: (id_estudiante, nombre, grado, letra, turno)
     Retorna None si el estudiante no existe
     """
     initialize_database()
@@ -216,7 +216,7 @@ def get_student_info(id_estudiante: int) -> Tuple[int, str, str, str]:
     with _connect() as conn:
         row = conn.execute(
             """
-            SELECT e.id_estudiante, g.grado, g.letra, g.turno
+            SELECT e.id_estudiante, e.nombre, g.grado, g.letra, g.turno
             FROM estudiantes e
             JOIN grupos g ON g.id_grupo = e.id_grupo
             WHERE e.id_estudiante = ? AND e.estado_activo = 1
@@ -225,7 +225,7 @@ def get_student_info(id_estudiante: int) -> Tuple[int, str, str, str]:
         ).fetchone()
 
     if row:
-        return row  # (id_estudiante, grado, letra, turno)
+        return row  # (id_estudiante, nombre, grado, letra, turno)
     return None
 
 

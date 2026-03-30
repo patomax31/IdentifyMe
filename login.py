@@ -55,10 +55,10 @@ def dibujar_barra_estado(frame, mensaje, color, ancho_frame):
     cv2.rectangle(frame, (0, 0), (ancho_frame, alto_barra), (0, 0, 0), -1)
     cv2.putText(frame, mensaje, (30, 55), cv2.FONT_HERSHEY_DUPLEX, 1.3, color, 2)
 
-def dibujar_datos_estudiante(frame, grado, letra, turno, id_estudiante, alto_frame, ancho_frame):
+def dibujar_datos_estudiante(frame, nombre, grado, letra, turno, id_estudiante, alto_frame, ancho_frame):
     """Muestra datos del estudiante con fondo semi-transparente"""
     overlay = frame.copy()
-    alto_box = 120
+    alto_box = 150
     y_start = alto_frame // 2 - alto_box // 2
     
     cv2.rectangle(overlay, (40, y_start), (ancho_frame - 40, y_start + alto_box), (0, 0, 0), -1)
@@ -66,8 +66,9 @@ def dibujar_datos_estudiante(frame, grado, letra, turno, id_estudiante, alto_fra
     
     # Textos con datos
     y_offset = y_start + 35
-    cv2.putText(frame, f"GRADO: {grado}{letra}", (60, y_offset), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
-    cv2.putText(frame, f"TURNO: {turno}", (60, y_offset + 40), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
+    cv2.putText(frame, f"NOMBRE: {nombre}", (60, y_offset), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
+    cv2.putText(frame, f"GRADO: {grado}{letra}", (60, y_offset + 40), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
+    cv2.putText(frame, f"TURNO: {turno}", (60, y_offset + 80), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
     cv2.putText(frame, f"ID: #{id_estudiante}", (60, y_offset + 80), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
 
 def login():
@@ -190,8 +191,8 @@ def login():
             color_cuadro = (0, 255, 0)
             
             if estudiante_confirmado_data and rostros_detectados:
-                id_est, grado, letra, turno = estudiante_confirmado_data
-                dibujar_datos_estudiante(frame, grado, letra, turno, id_est, alto, ancho)
+                id_est, nombre, grado, letra, turno = estudiante_confirmado_data
+                dibujar_datos_estudiante(frame, nombre, grado, letra, turno, id_est, alto, ancho)
         
         elif estado_actual == "rechazado":
             if tiempo_en_estado > 2.0:

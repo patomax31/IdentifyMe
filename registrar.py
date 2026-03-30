@@ -100,7 +100,7 @@ def registrar_usuario():
                 # Extraer encoding
                 encoding = face_recognition.face_encodings(rgb_frame, boxes)[0]
 
-                id_estudiante = create_student(grado, letra, turno)
+                id_estudiante = create_student(nombre, grado, letra, turno)
 
                 # Guardar en SQLite (fuente principal)
                 save_student_biometric(id_estudiante, encoding)

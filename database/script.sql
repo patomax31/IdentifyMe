@@ -22,6 +22,7 @@ CREATE TABLE grupos (
 -- 2. Tabla: estudiantes
 CREATE TABLE estudiantes (
     id_estudiante INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
     id_grupo INTEGER NOT NULL,
     estado_activo INTEGER NOT NULL DEFAULT 1 CHECK (estado_activo IN (0, 1)),
     FOREIGN KEY (id_grupo) REFERENCES grupos(id_grupo) ON DELETE RESTRICT
