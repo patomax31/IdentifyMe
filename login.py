@@ -185,17 +185,13 @@ def login():
             color_cuadro = (0, 255, 255)
         
         elif estado_actual == "verificado":
-            if tiempo_en_estado < 3.5:  # Mostrar 3.5 segundos
-                mensaje = "ACCESO CONCEDIDO ✓"
-                color_mensaje = (0, 255, 0)
-                color_cuadro = (0, 255, 0)
-                
-                if estudiante_confirmado_data and rostros_detectados:
-                    id_est, grado, letra, turno = estudiante_confirmado_data
-                    dibujar_datos_estudiante(frame, grado, letra, turno, id_est, alto, ancho)
-            else:
-                # Cierre automático
-                break
+            mensaje = "ACCESO CONCEDIDO ✓ - Q: Salir | R: Reintentar"
+            color_mensaje = (0, 255, 0)
+            color_cuadro = (0, 255, 0)
+            
+            if estudiante_confirmado_data and rostros_detectados:
+                id_est, grado, letra, turno = estudiante_confirmado_data
+                dibujar_datos_estudiante(frame, grado, letra, turno, id_est, alto, ancho)
         
         elif estado_actual == "rechazado":
             if tiempo_en_estado > 2.0:
