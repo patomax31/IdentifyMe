@@ -205,6 +205,30 @@ def load_student_biometrics() -> Tuple[List, List[str], List[int]]:
     return encodings, etiquetas, student_ids
 
 
+def get_student_info(id_estudiante: int) -> Tuple[int, str, str, str]:
+    """
+    Obtiene información del estudiante (grado, letra, turno).
+    Retorna: (id_estudiante, grado, letra, turno)
+    Retorna None si el estudiante no existe
+    """
+    initialize_database()
+
+    with _connect() as conn:
+        row = conn.execute(
+            """
+            SELECT e.id_estudiante, g.grado, g.letra, g.turno
+            FROM estudiantes e
+            JOIN grupos g ON g.id_grupo = e.id_grupo
+            WHERE e.id_estudiante = ? AND e.estado_activo = 1
+            """,
+            (id_estudiante,),
+        ).fetchone()
+
+    if row:
+        return row  # (id_estudiante, grado, letra, turno)
+    return None
+
+
 def log_access(
     id_usuario_ref: int,
     acceso_concedido: bool,
