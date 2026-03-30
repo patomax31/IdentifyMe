@@ -110,7 +110,7 @@ def registrar_usuario():
                 with open(f"data/{nombre_archivo}", "wb") as f:
                     pickle.dump(encoding, f)
                 
-                print(f"✓ Registro exitoso. {nombre} #{id_estudiante} ({grado}{letra}-{turno}).")
+                print(f"[OK] Registro exitoso. {nombre} #{id_estudiante} ({grado}{letra}-{turno}).")
                 break
             else:
                 print("Error: Asegúrate de que solo haya UN rostro y esté bien iluminado.")
