@@ -103,6 +103,13 @@ def _migrate_local_schema(conn: sqlite3.Connection) -> None:
 
     conn.execute("DROP TABLE IF EXISTS dispositivos_raspberry")
 
+    # Agregar columna nombre a estudiantes si no existe
+    estudiantes_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(estudiantes)").fetchall()
+    }
+    if "nombre" not in estudiantes_columns:
+        conn.execute("ALTER TABLE estudiantes ADD COLUMN nombre TEXT DEFAULT 'SIN NOMBRE'")
+
     # Asegura indices clave para consultas frecuentes en Raspberry Pi.
     conn.execute(
         """
