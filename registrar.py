@@ -25,26 +25,35 @@ def abrir_camara():
 
 
 def solicitar_datos_grupo():
+    nombre = input("Nombre del estudiante: ").strip().upper()
+    if not nombre or len(nombre) < 2:
+        print("Dato inválido. El nombre debe tener al menos 2 caracteres.")
+        return solicitar_datos_grupo()
+
     while True:
         grado_raw = input("Grado del estudiante (1-3): ").strip()
         if grado_raw in {"1", "2", "3"}:
             grado = int(grado_raw)
             break
-        print("Dato invalido. El grado debe ser 1, 2 o 3.")
+        print("Dato inválido. El grado debe ser 1, 2 o 3.")
 
     while True:
         letra = input("Letra del grupo (A-Z): ").strip().upper()
         if len(letra) == 1 and letra.isalpha():
             break
-        print("Dato invalido. Ingresa una sola letra (A-Z).")
+        print("Dato inválido. Ingresa una sola letra (A-Z).")
 
     while True:
-        turno = input("Turno (MATUTINO/VESPERTINO): ").strip().upper()
-        if turno in {"MATUTINO", "VESPERTINO"}:
+        turno_raw = input("Turno (M=MATUTINO / V=VESPERTINO): ").strip().upper()
+        if turno_raw == "M":
+            turno = "MATUTINO"
             break
-        print("Dato invalido. Usa MATUTINO o VESPERTINO.")
+        elif turno_raw == "V":
+            turno = "VESPERTINO"
+            break
+        print("Dato inválido. Usa M para MATUTINO o V para VESPERTINO.")
 
-    return grado, letra, turno
+    return nombre, grado, letra, turno
 
 def registrar_usuario():
     initialize_database()
@@ -53,14 +62,14 @@ def registrar_usuario():
     if not os.path.exists('data'):
         os.makedirs('data')
 
-    grado, letra, turno = solicitar_datos_grupo()
+    nombre, grado, letra, turno = solicitar_datos_grupo()
     cap = abrir_camara()
 
     if cap is None:
         print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
         return
 
-    print(f"Registrando estudiante de {grado}{letra}-{turno}. Presiona 'S' para capturar o 'Q' para salir.")
+    print(f"Registrando a {nombre} ({grado}{letra}-{turno}). Presiona 'S' para capturar o 'Q' para salir.")
 
     while True:
         frame = cap.capture_array()
@@ -101,7 +110,7 @@ def registrar_usuario():
                 with open(f"data/{nombre_archivo}", "wb") as f:
                     pickle.dump(encoding, f)
                 
-                print(f"Registro exitoso. Estudiante #{id_estudiante} ({grado}{letra}-{turno}).")
+                print(f"✓ Registro exitoso. {nombre} #{id_estudiante} ({grado}{letra}-{turno}).")
                 break
             else:
                 print("Error: Asegúrate de que solo haya UN rostro y esté bien iluminado.")
