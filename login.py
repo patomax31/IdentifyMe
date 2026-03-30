@@ -3,44 +3,26 @@ import face_recognition
 import pickle
 import os
 import time
+from picamera2 import Picamera2
 from database.sqlite_manager import initialize_database, load_student_biometrics, log_access
-
-
+# BGR888 azul
+#
 def abrir_camara():
-    # Perfil dual:
-    # - WINDOWS_STABLE: evita bloqueos usando DirectShow.
-    # - RASPBERRY_PI: prioriza V4L2 para camara local embebida.
-    camera_index = int(os.getenv("CAMERA_INDEX", "0"))
-    profile = os.getenv("CAMERA_PROFILE", "AUTO").strip().upper()
-    if profile == "AUTO":
-        profile = "WINDOWS_STABLE" if os.name == "nt" else "RASPBERRY_PI"
-
-    if profile == "WINDOWS_STABLE":
-        intentos = [
-            (camera_index, cv2.CAP_DSHOW),
-            (1 - camera_index, cv2.CAP_DSHOW),
-        ]
-    else:
-        intentos = [
-            (camera_index, cv2.CAP_V4L2),
-            (1 - camera_index, cv2.CAP_V4L2),
-            (camera_index, None),
-        ]
-
-    for indice, backend in intentos:
-        cap = cv2.VideoCapture(indice) if backend is None else cv2.VideoCapture(indice, backend)
-        if cap.isOpened():
-            # Ajustes de captura para balancear consumo/rendimiento en embebido.
-            width = int(os.getenv("CAMERA_WIDTH", "640"))
-            height = int(os.getenv("CAMERA_HEIGHT", "480"))
-            fps = int(os.getenv("CAMERA_FPS", "20"))
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-            cap.set(cv2.CAP_PROP_FPS, fps)
-            return cap
-        cap.release()
-
-    return None
+    # Usar Picamera2 para Raspberry Pi
+    try:
+        picam2 = Picamera2()
+        width = int(os.getenv("CAMERA_WIDTH", "480"))
+        height = int(os.getenv("CAMERA_HEIGHT", "800"))
+        
+        config = picam2.create_preview_configuration(
+            main={"format": 'XRGB8888', "size": (width, height)}
+        )
+        picam2.configure(config)
+        picam2.start()
+        return picam2
+    except Exception as e:
+        print(f"Error al iniciar Picamera2: {e}")
+        return None
 
 def cargar_base_datos():
     rostros = []
@@ -79,8 +61,8 @@ def login():
     cooldown_segundos = 8.0
 
     while True:
-        ret, frame = cap.read()
-        if not ret: break
+        frame = cap.capture_array()
+        if frame is None: break
 
         # Guía visual
         alto, ancho, _ = frame.shape
@@ -127,8 +109,7 @@ def login():
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    cap.release()
-    cv2.destroyAllWindows()
+    cap.stop()
 
 if __name__ == "__main__":
     login()
