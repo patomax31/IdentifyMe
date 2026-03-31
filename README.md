@@ -13,6 +13,26 @@ Sistema biométrico facial embebido para la identificación y verificación de u
 
 Este proyecto funciona mejor dentro de un entorno virtual de Python para evitar conflictos con otras librerías del sistema.
 
+### Configuración automática en Windows (recomendada)
+
+Puedes configurar todo el entorno en un solo paso (crea `.venv`, instala dependencias y valida imports):
+
+```powershell
+.\setup_windows.ps1
+```
+
+También puedes usar el lanzador para CMD o doble clic:
+
+```cmd
+setup_windows.bat
+```
+
+Opcionalmente, para recrear el entorno desde cero:
+
+```powershell
+.\setup_windows.ps1 -ForceRecreate
+```
+
 ### 1) Crear y activar un entorno virtual (recomendado)
 
 #### Windows (PowerShell)
@@ -84,3 +104,17 @@ python test.py
 - Usa buena iluminación para mejorar la detección facial.
 - Asegúrate de que solo haya un rostro en el cuadro al capturar el encoding.
 - Si tienes problemas con la cámara, prueba con otro dispositivo o controla que no esté siendo utilizada por otra aplicación.
+
+### Troubleshooting rápido (Windows)
+
+- Si aparece `Please install face_recognition_models...`, instala siempre con el Python del entorno virtual:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install face_recognition_models
+```
+
+- Si luego aparece error de `pkg_resources`, fija `setuptools` a una versión compatible:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install "setuptools<81"
+```
