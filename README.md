@@ -6,10 +6,30 @@ Sistema biométrico facial embebido para la identificación y verificación de u
 
 - `login.py` – Módulo de ejecución para iniciar el sistema de login por reconocimiento facial.
 - `registrar.py` – Script para registrar un nuevo estudiante (grupo + biometria facial).
+- `src/` – Nueva arquitectura modular (en adopcion progresiva):
+	- `src/core/` – Configuracion compartida.
+	- `src/domain/` – Puertos (interfaces) del dominio para desacoplar servicios de la infraestructura.
+	- `src/application/` – Servicios/casos de uso de alto nivel.
+	- `src/infrastructure/camera/` – Adaptadores de camara OpenCV.
+	- `src/infrastructure/recognition/` – Motor de reconocimiento facial.
+	- `src/infrastructure/persistence/` – Repositorio de persistencia (SQLite adapter).
 - `data/` – Carpeta de respaldo con archivos `.pkl` (formato `est_<id>.pkl`).
 - `database/script.sql` – Esquema SQLite del sistema.
 - `database/face_recognition.db` – Base de datos SQLite generada automaticamente al ejecutar el sistema.
 - `test.py` – Verifica que las librerías necesarias (OpenCV, dlib, numpy) estén instaladas.
+
+### Estado actual de modularizacion
+
+- `login.py` y `registrar.py` ya delegan en modulos de `src/` para camara, reconocimiento y servicios de aplicacion.
+- `database/sqlite_manager.py` funciona como fachada de compatibilidad.
+- La implementacion SQLite se separo por responsabilidad en `database/sqlite/`:
+	- `connection.py` (conexion),
+	- `migrations.py` (inicializacion/migracion),
+	- `students.py` (consultas de estudiantes y biometria),
+	- `access.py` (bitacora de accesos),
+	- `encoding.py` (serializacion de vectores faciales),
+	- `paths.py` (rutas del motor local).
+- `src/infrastructure/persistence/sqlite_repository.py` permanece como adaptador usado por servicios de aplicacion.
 
 ## ✅ Requisitos (dependencias)
 
@@ -107,6 +127,25 @@ Puedes verificar que las librerías estén correctamente instaladas ejecutando:
 ```bash
 python test.py
 ```
+
+## ✅ Pruebas unitarias (arquitectura modular)
+
+Se incluyeron pruebas unitarias para los servicios de aplicacion en `tests/`.
+
+Ejecuta:
+
+```bash
+python -m unittest discover -s tests -p "test_*.py" -v
+```
+
+Cobertura actual de pruebas:
+
+- Delegacion de inicializacion de servicios hacia el repositorio.
+- Carga de estudiantes conocidos en autenticacion.
+- Registro de bitacora de acceso en autenticacion.
+- Flujo de registro de estudiante + persistencia de biometria.
+- Integracion SQLite para `students.py` (crear/cargar biometria).
+- Integracion SQLite para `access.py` (persistencia y validacion de tipo de usuario).
 
 ## 📌 Notas
 

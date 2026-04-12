@@ -1,45 +1,10 @@
 import cv2
-import face_recognition
 import pickle
 import os
-from database.sqlite_manager import initialize_database, create_student, save_student_biometric
-
-
-def abrir_camara():
-    # Perfil dual:
-    # - WINDOWS_STABLE: evita bloqueos usando DirectShow.
-    # - RASPBERRY_PI: prioriza V4L2 para camara local embebida.
-    camera_index = int(os.getenv("CAMERA_INDEX", "0"))
-    profile = os.getenv("CAMERA_PROFILE", "AUTO").strip().upper()
-    if profile == "AUTO":
-        profile = "WINDOWS_STABLE" if os.name == "nt" else "RASPBERRY_PI"
-
-    if profile == "WINDOWS_STABLE":
-        intentos = [
-            (camera_index, cv2.CAP_DSHOW),
-            (1 - camera_index, cv2.CAP_DSHOW),
-        ]
-    else:
-        intentos = [
-            (camera_index, cv2.CAP_V4L2),
-            (1 - camera_index, cv2.CAP_V4L2),
-            (camera_index, None),
-        ]
-
-    for indice, backend in intentos:
-        cap = cv2.VideoCapture(indice) if backend is None else cv2.VideoCapture(indice, backend)
-        if cap.isOpened():
-            # Ajustes de captura para balancear consumo/rendimiento en embebido.
-            width = int(os.getenv("CAMERA_WIDTH", "640"))
-            height = int(os.getenv("CAMERA_HEIGHT", "480"))
-            fps = int(os.getenv("CAMERA_FPS", "20"))
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-            cap.set(cv2.CAP_PROP_FPS, fps)
-            return cap
-        cap.release()
-
-    return None
+from src.application.registration_service import RegistrationService
+from src.infrastructure.camera.opencv_camera import open_camera
+from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
+from src.infrastructure.recognition.face_engine import encode_single_face_from_frame
 
 
 def solicitar_datos_grupo():
@@ -65,14 +30,15 @@ def solicitar_datos_grupo():
     return grado, letra, turno
 
 def registrar_usuario():
-    initialize_database()
+    registration_service = RegistrationService(SQLiteRepository())
+    registration_service.initialize()
 
     # Crear carpeta de datos si no existe
     if not os.path.exists('data'):
         os.makedirs('data')
 
     grado, letra, turno = solicitar_datos_grupo()
-    cap = abrir_camara()
+    cap = open_camera()
 
     if cap is None:
         print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
@@ -101,18 +67,16 @@ def registrar_usuario():
         key = cv2.waitKey(1) & 0xFF
         
         if key == ord('s'):
-            # Convertir a RGB para face_recognition
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            boxes = face_recognition.face_locations(rgb_frame)
-            
-            if len(boxes) == 1:
-                # Extraer encoding
-                encoding = face_recognition.face_encodings(rgb_frame, boxes)[0]
+            encoding = encode_single_face_from_frame(frame)
 
-                id_estudiante = create_student(grado, letra, turno)
+            if encoding is not None:
 
-                # Guardar en SQLite (fuente principal)
-                save_student_biometric(id_estudiante, encoding)
+                id_estudiante = registration_service.register_student_with_encoding(
+                    grado,
+                    letra,
+                    turno,
+                    encoding,
+                )
                 
                 # Guardar respaldo en .pkl
                 nombre_archivo = f"est_{id_estudiante}.pkl"
