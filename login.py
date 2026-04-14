@@ -1,16 +1,49 @@
 <<<<<<< HEAD
 import cv2
+import face_recognition
 import pickle
 import os
 import time
-from src.application.auth_service import AuthService
-from src.infrastructure.camera.opencv_camera import open_camera
-from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
-from src.infrastructure.recognition.face_engine import detect_face_encodings_from_frame, find_first_match
+from database.sqlite_manager import initialize_database, load_student_biometrics, log_access
 
+
+def abrir_camara():
+    # Perfil dual:
+    # - WINDOWS_STABLE: evita bloqueos usando DirectShow.
+    # - RASPBERRY_PI: prioriza V4L2 para camara local embebida.
+    camera_index = int(os.getenv("CAMERA_INDEX", "0"))
+    profile = os.getenv("CAMERA_PROFILE", "AUTO").strip().upper()
+    if profile == "AUTO":
+        profile = "WINDOWS_STABLE" if os.name == "nt" else "RASPBERRY_PI"
+
+    if profile == "WINDOWS_STABLE":
+        intentos = [
+            (camera_index, cv2.CAP_DSHOW),
+            (1 - camera_index, cv2.CAP_DSHOW),
+        ]
+    else:
+        intentos = [
+            (camera_index, cv2.CAP_V4L2),
+            (1 - camera_index, cv2.CAP_V4L2),
+            (camera_index, None),
+        ]
+
+    for indice, backend in intentos:
+        cap = cv2.VideoCapture(indice) if backend is None else cv2.VideoCapture(indice, backend)
+        if cap.isOpened():
+            # Ajustes de captura para balancear consumo/rendimiento en embebido.
+            width = int(os.getenv("CAMERA_WIDTH", "640"))
+            height = int(os.getenv("CAMERA_HEIGHT", "480"))
+            fps = int(os.getenv("CAMERA_FPS", "20"))
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+            cap.set(cv2.CAP_PROP_FPS, fps)
+            return cap
+        cap.release()
+
+    return None
 
 def cargar_base_datos():
-    """Carga biometría de archivos .pkl como respaldo"""
     rostros = []
     nombres = []
     if not os.path.isdir("data"):
@@ -23,77 +56,25 @@ def cargar_base_datos():
                 nombres.append(archivo.replace(".pkl", ""))
     return rostros, nombres
 
-def dibujar_cuadro_amigable(frame, top, right, bottom, left, color, grosor=3):
-    """Dibuja un cuadro redondeado amigable sin parpadeos"""
-    # Cuadro principal
-    cv2.rectangle(frame, (left, top), (right, bottom), color, grosor)
-    
-    # Puntos de énfasis en esquinas
-    radio = 12
-    cv2.circle(frame, (left, top), radio, color, -1)
-    cv2.circle(frame, (right, top), radio, color, -1)
-    cv2.circle(frame, (left, bottom), radio, color, -1)
-    cv2.circle(frame, (right, bottom), radio, color, -1)
-
-def dibujar_barra_estado(frame, mensaje, color, ancho_frame):
-    """Dibuja barra de estado superior"""
-    alto_barra = 80
-    cv2.rectangle(frame, (0, 0), (ancho_frame, alto_barra), (0, 0, 0), -1)
-    cv2.putText(frame, mensaje, (30, 55), cv2.FONT_HERSHEY_DUPLEX, 1.3, color, 2)
-
-def dibujar_datos_estudiante(frame, nombre, grado, letra, turno, id_estudiante, alto_frame, ancho_frame):
-    """Muestra datos del estudiante con fondo semi-transparente"""
-    overlay = frame.copy()
-    alto_box = 150
-    y_start = alto_frame // 2 - alto_box // 2
-    
-    cv2.rectangle(overlay, (40, y_start), (ancho_frame - 40, y_start + alto_box), (0, 0, 0), -1)
-    cv2.addWeighted(overlay, 0.75, frame, 0.25, 0, frame)
-    
-    # Textos con datos
-    y_offset = y_start + 35
-    cv2.putText(frame, f"NOMBRE: {nombre}", (60, y_offset), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
-    cv2.putText(frame, f"GRADO: {grado}{letra}", (60, y_offset + 40), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
-    cv2.putText(frame, f"TURNO: {turno}", (60, y_offset + 80), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
-    cv2.putText(frame, f"ID: #{id_estudiante}", (60, y_offset + 80), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
-
 def login():
-    auth_service = AuthService(SQLiteRepository())
-    auth_service.initialize()
-    rostros_db, nombres_db, ids_db = auth_service.load_known_students()
+    initialize_database()
+    rostros_db, nombres_db, ids_db = load_student_biometrics()
 
     # Compatibilidad: usar archivos .pkl si aun no hay biometria en SQLite.
     if not rostros_db:
         rostros_db, nombres_db = cargar_base_datos()
         ids_db = [0] * len(nombres_db)
-=======
-"""
-Módulo de lógica de autenticación facial - LÓGICA PURA
 
-Contiene solo la lógica de negocio para:
-- Carga de datos biométricos
-- Verificación de rostros
-- Registro de acceso
-- Detección facial
->>>>>>> 2e2d95e (UI de la cargainicial de dependencias test_setup.py)
+    if not rostros_db:
+        print("No hay biometria registrada. Ejecuta primero registrar.py")
+        return
 
-La interfaz gráfica está en login_ui.py
-"""
-import pickle
-import os
-import time
+    cap = abrir_camara()
 
-# Importaciones del proyecto
-try:
-    from src.application.auth_service import AuthService
-    from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
-    from src.infrastructure.recognition.face_engine import detect_face_encodings_from_frame, find_first_match
-    USE_ADVANCED = True
-except ImportError:
-    USE_ADVANCED = False
+    if cap is None:
+        print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
+        return
 
-
-<<<<<<< HEAD
     # Evita registrar el mismo acceso en cada frame mientras la persona sigue frente a camara.
     ultima_bitacora = {}
     cooldown_segundos = 8.0
@@ -107,16 +88,22 @@ except ImportError:
         centro = (ancho // 2, alto // 2)
         ejes = (int(ancho * 0.25), int(alto * 0.4))
         
-        _, encodings = detect_face_encodings_from_frame(frame, scale=0.25)
+        # Procesar frame (escala 1/4 para velocidad)
+        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+        rgb_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+
+        boxes = face_recognition.face_locations(rgb_small)
+        encodings = face_recognition.face_encodings(rgb_small, boxes)
 
         color_oval = (255, 255, 255) # Blanco por defecto
         mensaje = "ESPERANDO ROSTRO..."
 
         for face_encoding in encodings:
             # Comparar con la base de datos
-            idx = find_first_match(rostros_db, face_encoding, tolerance=0.5)
-
-            if idx >= 0:
+            matches = face_recognition.compare_faces(rostros_db, face_encoding, tolerance=0.5)
+            
+            if True in matches:
+                idx = matches.index(True)
                 nombre_usuario = nombres_db[idx].upper()
                 mensaje = f"ACCESO CONCEDIDO: {nombre_usuario}"
                 color_oval = (0, 255, 0) # Verde
@@ -125,7 +112,7 @@ except ImportError:
                     ahora = time.monotonic()
                     ultimo = ultima_bitacora.get(id_estudiante, 0.0)
                     if ahora - ultimo >= cooldown_segundos:
-                        auth_service.log_access(id_estudiante, True)
+                        log_access(id_estudiante, True, tipo_usuario="ESTUDIANTE")
                         ultima_bitacora[id_estudiante] = ahora
             else:
                 mensaje = "ACCESO DENEGADO"

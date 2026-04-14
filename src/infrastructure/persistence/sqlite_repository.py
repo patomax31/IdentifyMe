@@ -18,8 +18,8 @@ class SQLiteRepository:
     def load_active_student_biometrics(self) -> Tuple[List, List[str], List[int]]:
         return load_student_biometrics()
 
-    def create_student(self, grado: int, letra: str, turno: str) -> int:
-        return create_student(grado, letra, turno)
+    def create_student(self, nombre: str, grado: int, letra: str, turno: str) -> int:
+        return create_student(nombre, grado, letra, turno)
 
     def save_student_biometric(self, id_estudiante: int, encoding) -> None:
         save_student_biometric(id_estudiante, encoding)

@@ -1,6 +1,6 @@
-# Face Recognition Biometric Login
+# IdentifyMe
 
-Sistema biométrico facial embebido para la identificación y verificación de usuarios a partir de imágenes faciales capturadas por una cámara digital.
+IdentifyMe es un sistema de control de acceso mediante datos biométricos faciales en una Raspberry Pi 5
 
 ## 📌 Estructura del proyecto
 
@@ -21,6 +21,9 @@ Sistema biométrico facial embebido para la identificación y verificación de u
 ### Estado actual de modularizacion
 
 - `login.py` y `registrar.py` ya delegan en modulos de `src/` para camara, reconocimiento y servicios de aplicacion.
+- Los flujos de negocio de login/registro viven en casos de uso:
+	- `src/application/login_use_case.py`
+	- `src/application/registration_use_case.py`
 - `database/sqlite_manager.py` funciona como fachada de compatibilidad.
 - La implementacion SQLite se separo por responsabilidad en `database/sqlite/`:
 	- `connection.py` (conexion),
@@ -30,6 +33,13 @@ Sistema biométrico facial embebido para la identificación y verificación de u
 	- `encoding.py` (serializacion de vectores faciales),
 	- `paths.py` (rutas del motor local).
 - `src/infrastructure/persistence/sqlite_repository.py` permanece como adaptador usado por servicios de aplicacion.
+
+### Diagrama de capas (resumen textual)
+
+- `domain`: define puertos (`src/domain/ports.py`) y reglas de dependencia.
+- `application`: coordina casos de uso y flujo funcional sin depender de implementaciones concretas.
+- `infrastructure`: implementa puertos para camara, reconocimiento y persistencia (SQLite y PKL).
+- `entrypoints` (`login.py`, `registrar.py`): UI/IO y orquestacion ligera.
 
 ## ✅ Requisitos (dependencias)
 
@@ -123,6 +133,27 @@ pip install git+https://github.com/ageitgey/face_recognition_models
 - El registro guarda biometria en SQLite (tabla `datos_biometricos`) para `ESTUDIANTE` y conserva un respaldo en `data/*.pkl`.
 - En la version local, el login usa SQLite como fuente principal y solo usa `.pkl` como compatibilidad si aun no hay biometria en BD.
 
+## ⚙️ Configuracion por entorno
+
+Variables soportadas:
+
+- `CAMERA_INDEX` (default: `0`)
+- `CAMERA_PROFILE` (default: `AUTO`, opciones comunes: `WINDOWS_STABLE`, `RASPBERRY_PI`)
+- `CAMERA_WIDTH` (default: `640`)
+- `CAMERA_HEIGHT` (default: `480`)
+- `CAMERA_FPS` (default: `20`)
+- `RECOGNITION_SCALE` (default: `0.25`)
+- `RECOGNITION_TOLERANCE` (default: `0.5`)
+- `ACCESS_COOLDOWN_SECONDS` (default: `8.0`)
+
+Ejemplo en PowerShell:
+
+```powershell
+$env:RECOGNITION_TOLERANCE = "0.48"
+$env:ACCESS_COOLDOWN_SECONDS = "10"
+python login.py
+```
+
 ## 🚀 Uso
 
 ### 1) Registrar un estudiante
@@ -189,6 +220,28 @@ Cobertura actual de pruebas:
 - Flujo de registro de estudiante + persistencia de biometria.
 - Integracion SQLite para `students.py` (crear/cargar biometria).
 - Integracion SQLite para `access.py` (persistencia y validacion de tipo de usuario).
+- Integracion SQLite para vistas/reporting (`vw_estudiantes`, `vw_logs_acceso`, `vw_intentos_fallidos`).
+
+## Consultas administrativas seguras (SQLite)
+
+Se agregaron vistas y utilidades para reporting sin exponer SQL dinamico inseguro:
+
+- `vw_estudiantes`
+- `vw_logs_acceso`
+- `vw_intentos_fallidos`
+
+Script CLI:
+
+```bash
+python scripts/db_queries.py students --active true --limit 50
+python scripts/db_queries.py logs --tipo-usuario ESTUDIANTE --acceso-concedido true --limit 100
+python scripts/db_queries.py failed --from-datetime 2026-04-01T00:00:00 --to-datetime 2026-04-30T23:59:59
+```
+
+Opciones de salida:
+
+- `--format table` (default)
+- `--format json`
 
 ## 📌 Notas generales de uso
 
