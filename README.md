@@ -81,6 +81,14 @@ source venv/bin/activate
 
 ```bash
 pip install opencv-python face_recognition dlib numpy
+
+// Instalar setuptools para poder instalar los modelos de face_recognition
+
+venv/bin/python -m pip install "setuptools<81"
+
+// Instalar modelos de face_recognition
+
+pip install git+https://github.com/ageitgey/face_recognition_models
 ```
 
 > 🔍 `face_recognition` depende de `dlib`, que a su vez requiere compilación en algunos sistemas. Si tienes problemas en Windows, busca instalación de `dlib` con ruedas precompiladas.
