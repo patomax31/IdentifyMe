@@ -6,10 +6,30 @@ Sistema biométrico facial embebido para la identificación y verificación de u
 
 - `login.py` – Módulo de ejecución para iniciar el sistema de login por reconocimiento facial.
 - `registrar.py` – Script para registrar un nuevo estudiante (grupo + biometria facial).
+- `src/` – Nueva arquitectura modular (en adopcion progresiva):
+	- `src/core/` – Configuracion compartida.
+	- `src/domain/` – Puertos (interfaces) del dominio para desacoplar servicios de la infraestructura.
+	- `src/application/` – Servicios/casos de uso de alto nivel.
+	- `src/infrastructure/camera/` – Adaptadores de camara OpenCV.
+	- `src/infrastructure/recognition/` – Motor de reconocimiento facial.
+	- `src/infrastructure/persistence/` – Repositorio de persistencia (SQLite adapter).
 - `data/` – Carpeta de respaldo con archivos `.pkl` (formato `est_<id>.pkl`).
 - `database/script.sql` – Esquema SQLite del sistema.
 - `database/face_recognition.db` – Base de datos SQLite generada automaticamente al ejecutar el sistema.
 - `test.py` – Verifica que las librerías necesarias (OpenCV, dlib, numpy) estén instaladas.
+
+### Estado actual de modularizacion
+
+- `login.py` y `registrar.py` ya delegan en modulos de `src/` para camara, reconocimiento y servicios de aplicacion.
+- `database/sqlite_manager.py` funciona como fachada de compatibilidad.
+- La implementacion SQLite se separo por responsabilidad en `database/sqlite/`:
+	- `connection.py` (conexion),
+	- `migrations.py` (inicializacion/migracion),
+	- `students.py` (consultas de estudiantes y biometria),
+	- `access.py` (bitacora de accesos),
+	- `encoding.py` (serializacion de vectores faciales),
+	- `paths.py` (rutas del motor local).
+- `src/infrastructure/persistence/sqlite_repository.py` permanece como adaptador usado por servicios de aplicacion.
 
 ## ✅ Requisitos (dependencias)
 
@@ -43,24 +63,56 @@ python -m venv venv
 .\venv\Scripts\Activate.ps1
 ```
 
-#### Windows (CMD)
+#### En Windows (CMD):
 ```cmd
 python -m venv venv
 venv\Scripts\activate.bat
 ```
 
-#### macOS / Linux
+#### En macOS:
 ```bash
-python3 -m venv venv
+python3 -m venv --system-site-packages venv
 source venv/bin/activate
 ```
 
-> 💡 Si no activas un venv, los paquetes pueden instalarse globalmente y podrías tener problemas al ejecutar los scripts.
+> ⚠️ **Importante:** El flag `--system-site-packages` es CRÍTICO en Raspberry Pi porque permite acceso a librerías del sistema operativo (libcamera, libpicamera2) que no están disponibles en PyPI.
 
-### 2) Instalar dependencias
+### Paso 3: Instalar dependencias
+
+```bash
+pip install --upgrade pip
+pip install opencv-python face-recognition dlib numpy
+```
+
+> 📌 `face-recognition` depende de `dlib`, que requiere compilación. En Raspberry Pi esto puede tomar 10-20 minutos. Sea paciente.
+
+**Si la compilación de dlib falla en Raspberry Pi**, intente usar piwheels:
+```bash
+pip install --upgrade pip
+pip install --index-url https://www.piwheels.org/simple opencv-python face-recognition numpy
+```
+
+### Paso 4: Instalar dependencias del sistema (Raspberry Pi)
+
+Si está en Raspberry Pi, instale también las librerías de cámara:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3-libcamera python3-picamera2
+```
+
+### Paso 5: Verificar la instalación
 
 ```bash
 pip install opencv-python face_recognition dlib numpy
+
+// Instalar setuptools para poder instalar los modelos de face_recognition
+
+venv/bin/python -m pip install "setuptools<81"
+
+// Instalar modelos de face_recognition
+
+pip install git+https://github.com/ageitgey/face_recognition_models
 ```
 
 > 🔍 `face_recognition` depende de `dlib`, que a su vez requiere compilación en algunos sistemas. Si tienes problemas en Windows, busca instalación de `dlib` con ruedas precompiladas.
@@ -105,10 +157,40 @@ python login.py
 Puedes verificar que las librerías estén correctamente instaladas ejecutando:
 
 ```bash
-python test.py
+# Ver rama actual
+git branch
+
+# Cambiar de rama (el venv se mantiene)
+git checkout VictorRama
+git checkout kevin
+
+# Activar venv (igual para todas las ramas)
+source venv/bin/activate
+
+# Ejecutar
+python login.py
 ```
 
-## 📌 Notas
+## ✅ Pruebas unitarias (arquitectura modular)
+
+Se incluyeron pruebas unitarias para los servicios de aplicacion en `tests/`.
+
+Ejecuta:
+
+```bash
+python -m unittest discover -s tests -p "test_*.py" -v
+```
+
+Cobertura actual de pruebas:
+
+- Delegacion de inicializacion de servicios hacia el repositorio.
+- Carga de estudiantes conocidos en autenticacion.
+- Registro de bitacora de acceso en autenticacion.
+- Flujo de registro de estudiante + persistencia de biometria.
+- Integracion SQLite para `students.py` (crear/cargar biometria).
+- Integracion SQLite para `access.py` (persistencia y validacion de tipo de usuario).
+
+## 📌 Notas generales de uso
 
 - Usa buena iluminación para mejorar la detección facial.
 - Asegúrate de que solo haya un rostro en el cuadro al capturar el encoding.
