@@ -9,6 +9,7 @@ from src.infrastructure.recognition.face_engine import detect_face_encodings_fro
 
 
 def cargar_base_datos():
+    """Carga biometría de archivos .pkl como respaldo"""
     rostros = []
     nombres = []
     if not os.path.isdir("data"):
@@ -20,6 +21,40 @@ def cargar_base_datos():
                 rostros.append(pickle.load(f))
                 nombres.append(archivo.replace(".pkl", ""))
     return rostros, nombres
+
+def dibujar_cuadro_amigable(frame, top, right, bottom, left, color, grosor=3):
+    """Dibuja un cuadro redondeado amigable sin parpadeos"""
+    # Cuadro principal
+    cv2.rectangle(frame, (left, top), (right, bottom), color, grosor)
+    
+    # Puntos de énfasis en esquinas
+    radio = 12
+    cv2.circle(frame, (left, top), radio, color, -1)
+    cv2.circle(frame, (right, top), radio, color, -1)
+    cv2.circle(frame, (left, bottom), radio, color, -1)
+    cv2.circle(frame, (right, bottom), radio, color, -1)
+
+def dibujar_barra_estado(frame, mensaje, color, ancho_frame):
+    """Dibuja barra de estado superior"""
+    alto_barra = 80
+    cv2.rectangle(frame, (0, 0), (ancho_frame, alto_barra), (0, 0, 0), -1)
+    cv2.putText(frame, mensaje, (30, 55), cv2.FONT_HERSHEY_DUPLEX, 1.3, color, 2)
+
+def dibujar_datos_estudiante(frame, nombre, grado, letra, turno, id_estudiante, alto_frame, ancho_frame):
+    """Muestra datos del estudiante con fondo semi-transparente"""
+    overlay = frame.copy()
+    alto_box = 150
+    y_start = alto_frame // 2 - alto_box // 2
+    
+    cv2.rectangle(overlay, (40, y_start), (ancho_frame - 40, y_start + alto_box), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.75, frame, 0.25, 0, frame)
+    
+    # Textos con datos
+    y_offset = y_start + 35
+    cv2.putText(frame, f"NOMBRE: {nombre}", (60, y_offset), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
+    cv2.putText(frame, f"GRADO: {grado}{letra}", (60, y_offset + 40), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
+    cv2.putText(frame, f"TURNO: {turno}", (60, y_offset + 80), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
+    cv2.putText(frame, f"ID: #{id_estudiante}", (60, y_offset + 80), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
 
 def login():
     auth_service = AuthService(SQLiteRepository())
