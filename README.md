@@ -63,21 +63,45 @@ python -m venv venv
 .\venv\Scripts\Activate.ps1
 ```
 
-#### Windows (CMD)
+#### En Windows (CMD):
 ```cmd
 python -m venv venv
 venv\Scripts\activate.bat
 ```
 
-#### macOS / Linux
+#### En macOS:
 ```bash
-python3 -m venv venv
+python3 -m venv --system-site-packages venv
 source venv/bin/activate
 ```
 
-> 💡 Si no activas un venv, los paquetes pueden instalarse globalmente y podrías tener problemas al ejecutar los scripts.
+> ⚠️ **Importante:** El flag `--system-site-packages` es CRÍTICO en Raspberry Pi porque permite acceso a librerías del sistema operativo (libcamera, libpicamera2) que no están disponibles en PyPI.
 
-### 2) Instalar dependencias
+### Paso 3: Instalar dependencias
+
+```bash
+pip install --upgrade pip
+pip install opencv-python face-recognition dlib numpy
+```
+
+> 📌 `face-recognition` depende de `dlib`, que requiere compilación. En Raspberry Pi esto puede tomar 10-20 minutos. Sea paciente.
+
+**Si la compilación de dlib falla en Raspberry Pi**, intente usar piwheels:
+```bash
+pip install --upgrade pip
+pip install --index-url https://www.piwheels.org/simple opencv-python face-recognition numpy
+```
+
+### Paso 4: Instalar dependencias del sistema (Raspberry Pi)
+
+Si está en Raspberry Pi, instale también las librerías de cámara:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3-libcamera python3-picamera2
+```
+
+### Paso 5: Verificar la instalación
 
 ```bash
 pip install opencv-python face_recognition dlib numpy
@@ -133,7 +157,18 @@ python login.py
 Puedes verificar que las librerías estén correctamente instaladas ejecutando:
 
 ```bash
-python test.py
+# Ver rama actual
+git branch
+
+# Cambiar de rama (el venv se mantiene)
+git checkout VictorRama
+git checkout kevin
+
+# Activar venv (igual para todas las ramas)
+source venv/bin/activate
+
+# Ejecutar
+python login.py
 ```
 
 ## ✅ Pruebas unitarias (arquitectura modular)
@@ -155,7 +190,7 @@ Cobertura actual de pruebas:
 - Integracion SQLite para `students.py` (crear/cargar biometria).
 - Integracion SQLite para `access.py` (persistencia y validacion de tipo de usuario).
 
-## 📌 Notas
+## 📌 Notas generales de uso
 
 - Usa buena iluminación para mejorar la detección facial.
 - Asegúrate de que solo haya un rostro en el cuadro al capturar el encoding.
