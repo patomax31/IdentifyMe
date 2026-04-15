@@ -1,4 +1,4 @@
-from typing import List, Protocol, Tuple
+from typing import List, Optional, Protocol, Tuple
 
 
 class AuthRepositoryPort(Protocol):
@@ -12,6 +12,19 @@ class AuthRepositoryPort(Protocol):
         ...
 
 
+class PklBiometricRepositoryPort(Protocol):
+    def load_student_biometrics(self) -> Tuple[List, List[str], List[int]]:
+        ...
+
+    def save_student_biometric(self, id_estudiante: int, encoding) -> None:
+        ...
+
+
+class FaceMatcherPort(Protocol):
+    def find_first_match(self, known_encodings, candidate_encoding, tolerance: float) -> int:
+        ...
+
+
 class RegistrationRepositoryPort(Protocol):
     def initialize(self) -> None:
         ...
@@ -21,3 +34,9 @@ class RegistrationRepositoryPort(Protocol):
 
     def save_student_biometric(self, id_estudiante: int, encoding) -> None:
         ...
+
+
+class RegistrationResultPort(Protocol):
+    success: bool
+    message: str
+    student_id: Optional[int]

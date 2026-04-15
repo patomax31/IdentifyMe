@@ -1,10 +1,11 @@
 import cv2
-import pickle
-import os
 from src.application.registration_service import RegistrationService
+from src.application.registration_use_case import RegistrationUseCase
+from src.core.config import get_recognition_settings
 from src.infrastructure.camera.opencv_camera import open_camera
+from src.infrastructure.persistence.pkl_repository import PklRepository
 from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
-from src.infrastructure.recognition.face_engine import encode_single_face_from_frame
+from src.infrastructure.recognition.face_engine import detect_face_encodings_from_frame
 
 
 def solicitar_datos_grupo():
@@ -30,12 +31,12 @@ def solicitar_datos_grupo():
     return grado, letra, turno
 
 def registrar_usuario():
-    registration_service = RegistrationService(SQLiteRepository())
-    registration_service.initialize()
-
-    # Crear carpeta de datos si no existe
-    if not os.path.exists('data'):
-        os.makedirs('data')
+    recognition_settings = get_recognition_settings()
+    use_case = RegistrationUseCase(
+        registration_service=RegistrationService(SQLiteRepository()),
+        pkl_repository=PklRepository(),
+    )
+    use_case.initialize()
 
     grado, letra, turno = solicitar_datos_grupo()
     cap = open_camera()
@@ -67,26 +68,14 @@ def registrar_usuario():
         key = cv2.waitKey(1) & 0xFF
         
         if key == ord('s'):
-            encoding = encode_single_face_from_frame(frame)
+            _, encodings = detect_face_encodings_from_frame(frame, scale=recognition_settings.scale)
+            result = use_case.register_from_detected_faces(grado, letra, turno, encodings)
 
-            if encoding is not None:
-
-                id_estudiante = registration_service.register_student_with_encoding(
-                    grado,
-                    letra,
-                    turno,
-                    encoding,
-                )
-                
-                # Guardar respaldo en .pkl
-                nombre_archivo = f"est_{id_estudiante}.pkl"
-                with open(f"data/{nombre_archivo}", "wb") as f:
-                    pickle.dump(encoding, f)
-                
-                print(f"Registro exitoso. Estudiante #{id_estudiante} ({grado}{letra}-{turno}).")
+            if result.success:
+                print(result.message)
                 break
-            else:
-                print("Error: Asegúrate de que solo haya UN rostro y esté bien iluminado.")
+
+            print(result.message)
 
         if key == ord('q'):
             break
