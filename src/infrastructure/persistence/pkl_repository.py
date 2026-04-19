@@ -1,6 +1,10 @@
+import logging
 import os
 import pickle
 from typing import List, Tuple
+
+
+logger = logging.getLogger(__name__)
 
 
 class PklRepository:
@@ -19,12 +23,20 @@ class PklRepository:
             if not filename.endswith(".pkl"):
                 continue
 
+            student_id = self._extract_student_id(filename)
+            if not filename.startswith("est_") or student_id == 0:
+                logger.warning("Skipping unexpected biometric file: %s", filename)
+                continue
+
             path = os.path.join(self.base_dir, filename)
-            with open(path, "rb") as file_obj:
-                encoding = pickle.load(file_obj)
+            try:
+                with open(path, "rb") as file_obj:
+                    encoding = pickle.load(file_obj)
+            except (OSError, pickle.PickleError, EOFError, AttributeError, ValueError, TypeError) as exc:
+                logger.warning("Skipping invalid biometric file '%s': %s", filename, exc)
+                continue
 
             label = filename.replace(".pkl", "")
-            student_id = self._extract_student_id(filename)
 
             encodings.append(encoding)
             labels.append(label)
