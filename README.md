@@ -21,6 +21,9 @@ Sistema biométrico facial embebido para la identificación y verificación de u
 ### Estado actual de modularizacion
 
 - `login.py` y `registrar.py` ya delegan en modulos de `src/` para camara, reconocimiento y servicios de aplicacion.
+- Los flujos de negocio de login/registro viven en casos de uso:
+	- `src/application/login_use_case.py`
+	- `src/application/registration_use_case.py`
 - `database/sqlite_manager.py` funciona como fachada de compatibilidad.
 - La implementacion SQLite se separo por responsabilidad en `database/sqlite/`:
 	- `connection.py` (conexion),
@@ -30,6 +33,13 @@ Sistema biométrico facial embebido para la identificación y verificación de u
 	- `encoding.py` (serializacion de vectores faciales),
 	- `paths.py` (rutas del motor local).
 - `src/infrastructure/persistence/sqlite_repository.py` permanece como adaptador usado por servicios de aplicacion.
+
+### Diagrama de capas (resumen textual)
+
+- `domain`: define puertos (`src/domain/ports.py`) y reglas de dependencia.
+- `application`: coordina casos de uso y flujo funcional sin depender de implementaciones concretas.
+- `infrastructure`: implementa puertos para camara, reconocimiento y persistencia (SQLite y PKL).
+- `entrypoints` (`login.py`, `registrar.py`): UI/IO y orquestacion ligera.
 
 ## ✅ Requisitos (dependencias)
 
@@ -122,6 +132,27 @@ pip install git+https://github.com/ageitgey/face_recognition_models
 - El sistema inicializa automaticamente la base de datos desde `database/script.sql`.
 - El registro guarda biometria en SQLite (tabla `datos_biometricos`) para `ESTUDIANTE` y conserva un respaldo en `data/*.pkl`.
 - En la version local, el login usa SQLite como fuente principal y solo usa `.pkl` como compatibilidad si aun no hay biometria en BD.
+
+## ⚙️ Configuracion por entorno
+
+Variables soportadas:
+
+- `CAMERA_INDEX` (default: `0`)
+- `CAMERA_PROFILE` (default: `AUTO`, opciones comunes: `WINDOWS_STABLE`, `RASPBERRY_PI`)
+- `CAMERA_WIDTH` (default: `640`)
+- `CAMERA_HEIGHT` (default: `480`)
+- `CAMERA_FPS` (default: `20`)
+- `RECOGNITION_SCALE` (default: `0.25`)
+- `RECOGNITION_TOLERANCE` (default: `0.5`)
+- `ACCESS_COOLDOWN_SECONDS` (default: `8.0`)
+
+Ejemplo en PowerShell:
+
+```powershell
+$env:RECOGNITION_TOLERANCE = "0.48"
+$env:ACCESS_COOLDOWN_SECONDS = "10"
+python login.py
+```
 
 ## 🚀 Uso
 
