@@ -22,32 +22,180 @@ def initialize_database() -> None:
 
 
 def migrate_local_schema(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS grados (
+            id_grado INTEGER PRIMARY KEY AUTOINCREMENT,
+            clave TEXT NOT NULL UNIQUE,
+            nombre TEXT NOT NULL UNIQUE
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS turnos (
+            id_turno INTEGER PRIMARY KEY AUTOINCREMENT,
+            clave TEXT NOT NULL UNIQUE,
+            nombre TEXT NOT NULL UNIQUE
+        )
+        """
+    )
+    conn.execute("INSERT OR IGNORE INTO grados (clave, nombre) VALUES ('1', 'PRIMERO')")
+    conn.execute("INSERT OR IGNORE INTO grados (clave, nombre) VALUES ('2', 'SEGUNDO')")
+    conn.execute("INSERT OR IGNORE INTO grados (clave, nombre) VALUES ('3', 'TERCERO')")
+    conn.execute("INSERT OR IGNORE INTO turnos (clave, nombre) VALUES ('MATUTINO', 'MATUTINO')")
+    conn.execute("INSERT OR IGNORE INTO turnos (clave, nombre) VALUES ('VESPERTINO', 'VESPERTINO')")
+
+    grupos_info = conn.execute("PRAGMA table_info(grupos)").fetchall()
+    grupos_columns = {row[1] for row in grupos_info}
+    is_legacy_grupos = {"grado", "letra", "turno"}.issubset(grupos_columns)
+
+    if is_legacy_grupos:
+        conn.execute("ALTER TABLE grupos RENAME TO grupos_legacy")
+        conn.execute(
+            """
+            CREATE TABLE grupos (
+                id_grupo INTEGER PRIMARY KEY AUTOINCREMENT,
+                clave TEXT NOT NULL UNIQUE
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO grupos (clave)
+            SELECT DISTINCT UPPER(SUBSTR(TRIM(letra), 1, 1))
+            FROM grupos_legacy
+            WHERE TRIM(letra) <> ''
+            """
+        )
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO grados (clave, nombre)
+            SELECT DISTINCT
+                CAST(grado AS TEXT) AS clave,
+                CASE CAST(grado AS TEXT)
+                    WHEN '1' THEN 'PRIMERO'
+                    WHEN '2' THEN 'SEGUNDO'
+                    WHEN '3' THEN 'TERCERO'
+                    ELSE 'GRADO ' || CAST(grado AS TEXT)
+                END AS nombre
+            FROM grupos_legacy
+            """
+        )
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO turnos (clave, nombre)
+            SELECT DISTINCT
+                CASE
+                    WHEN UPPER(TRIM(turno)) IN ('MATUTINO', 'MAT') THEN 'MATUTINO'
+                    WHEN UPPER(TRIM(turno)) IN ('VESPERTINO', 'VERPERTINO', 'VESP', 'VESP') THEN 'VESPERTINO'
+                    ELSE 'MATUTINO'
+                END AS clave,
+                CASE
+                    WHEN UPPER(TRIM(turno)) IN ('MATUTINO', 'MAT') THEN 'MATUTINO'
+                    WHEN UPPER(TRIM(turno)) IN ('VESPERTINO', 'VERPERTINO', 'VESP', 'VESP') THEN 'VESPERTINO'
+                    ELSE 'MATUTINO'
+                END AS nombre
+            FROM grupos_legacy
+            """
+        )
+
     conn.execute("DROP TABLE IF EXISTS estudiante_tutor")
     conn.execute("DROP TABLE IF EXISTS tutores")
 
     estudiantes_columns = {
         row[1] for row in conn.execute("PRAGMA table_info(estudiantes)").fetchall()
     }
-    if {"matricula", "nombre", "apellidos"}.issubset(estudiantes_columns):
+    needs_estudiantes_migration = {
+        "nombre",
+        "id_grado",
+        "id_grupo",
+        "id_turno",
+        "estado_activo",
+    } - estudiantes_columns
+
+    if {"matricula", "nombre", "apellidos"}.issubset(estudiantes_columns) or needs_estudiantes_migration:
         conn.execute(
             """
             CREATE TABLE estudiantes_new (
                 id_estudiante INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                id_grado INTEGER NOT NULL,
                 id_grupo INTEGER NOT NULL,
+                id_turno INTEGER NOT NULL,
                 estado_activo INTEGER NOT NULL DEFAULT 1 CHECK (estado_activo IN (0, 1)),
-                FOREIGN KEY (id_grupo) REFERENCES grupos(id_grupo) ON DELETE RESTRICT
+                FOREIGN KEY (id_grado) REFERENCES grados(id_grado) ON DELETE RESTRICT,
+                FOREIGN KEY (id_grupo) REFERENCES grupos(id_grupo) ON DELETE RESTRICT,
+                FOREIGN KEY (id_turno) REFERENCES turnos(id_turno) ON DELETE RESTRICT
             )
             """
         )
-        conn.execute(
-            """
-            INSERT INTO estudiantes_new (id_estudiante, id_grupo, estado_activo)
-            SELECT id_estudiante, id_grupo, estado_activo
-            FROM estudiantes
-            """
-        )
+
+        if is_legacy_grupos:
+            if "nombre" in estudiantes_columns:
+                conn.execute(
+                    """
+                    INSERT INTO estudiantes_new (id_estudiante, nombre, id_grado, id_grupo, id_turno, estado_activo)
+                    SELECT
+                        s.id_estudiante,
+                        COALESCE(NULLIF(TRIM(s.nombre), ''), 'ESTUDIANTE #' || s.id_estudiante),
+                        gd.id_grado,
+                        gp.id_grupo,
+                        tr.id_turno,
+                        COALESCE(s.estado_activo, 1)
+                    FROM estudiantes s
+                    JOIN grupos_legacy gl ON gl.id_grupo = s.id_grupo
+                    JOIN grados gd ON gd.clave = CAST(gl.grado AS TEXT)
+                    JOIN grupos gp ON gp.clave = UPPER(SUBSTR(TRIM(gl.letra), 1, 1))
+                    JOIN turnos tr ON tr.clave = CASE
+                        WHEN UPPER(TRIM(gl.turno)) IN ('MATUTINO', 'MAT') THEN 'MATUTINO'
+                        WHEN UPPER(TRIM(gl.turno)) IN ('VESPERTINO', 'VERPERTINO', 'VESP') THEN 'VESPERTINO'
+                        ELSE 'MATUTINO'
+                    END
+                    """
+                )
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO estudiantes_new (id_estudiante, nombre, id_grado, id_grupo, id_turno, estado_activo)
+                    SELECT
+                        s.id_estudiante,
+                        'ESTUDIANTE #' || s.id_estudiante,
+                        gd.id_grado,
+                        gp.id_grupo,
+                        tr.id_turno,
+                        COALESCE(s.estado_activo, 1)
+                    FROM estudiantes s
+                    JOIN grupos_legacy gl ON gl.id_grupo = s.id_grupo
+                    JOIN grados gd ON gd.clave = CAST(gl.grado AS TEXT)
+                    JOIN grupos gp ON gp.clave = UPPER(SUBSTR(TRIM(gl.letra), 1, 1))
+                    JOIN turnos tr ON tr.clave = CASE
+                        WHEN UPPER(TRIM(gl.turno)) IN ('MATUTINO', 'MAT') THEN 'MATUTINO'
+                        WHEN UPPER(TRIM(gl.turno)) IN ('VESPERTINO', 'VERPERTINO', 'VESP') THEN 'VESPERTINO'
+                        ELSE 'MATUTINO'
+                    END
+                    """
+                )
+        else:
+            conn.execute(
+                """
+                INSERT INTO estudiantes_new (id_estudiante, nombre, id_grado, id_grupo, id_turno, estado_activo)
+                SELECT
+                    id_estudiante,
+                    COALESCE(NULLIF(TRIM(nombre), ''), 'ESTUDIANTE #' || id_estudiante),
+                    id_grado,
+                    id_grupo,
+                    id_turno,
+                    COALESCE(estado_activo, 1)
+                FROM estudiantes
+                """
+            )
+
         conn.execute("DROP TABLE estudiantes")
         conn.execute("ALTER TABLE estudiantes_new RENAME TO estudiantes")
+
+    if is_legacy_grupos:
+        conn.execute("DROP TABLE grupos_legacy")
 
     log_columns = {
         row[1] for row in conn.execute("PRAGMA table_info(logs_acceso)").fetchall()
@@ -89,5 +237,11 @@ def migrate_local_schema(conn: sqlite3.Connection) -> None:
         """
         CREATE INDEX IF NOT EXISTS ix_logs_acceso_usuario_fecha
         ON logs_acceso (tipo_usuario, id_usuario_ref, fecha_hora DESC)
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS ix_estudiantes_catalogos
+        ON estudiantes (id_grado, id_grupo, id_turno, estado_activo)
         """
     )

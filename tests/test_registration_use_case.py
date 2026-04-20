@@ -12,8 +12,8 @@ class FakeRegistrationService:
     def initialize(self):
         self.initialized = True
 
-    def register_student_with_encoding(self, grado, letra, turno, encoding):
-        self.calls.append((grado, letra, turno, encoding))
+    def register_student_with_encoding(self, nombre, grado, letra, turno, encoding):
+        self.calls.append((nombre, grado, letra, turno, encoding))
         student_id = self.next_id
         self.next_id += 1
         return student_id
@@ -36,11 +36,11 @@ class RegistrationUseCaseTests(unittest.TestCase):
         pkl = FakePklRepository()
         use_case = RegistrationUseCase(service, pkl)
 
-        result = use_case.register_from_detected_faces(2, "B", "VESPERTINO", ["enc_1"])
+        result = use_case.register_from_detected_faces("Juan Perez", 2, "B", "VESPERTINO", ["enc_1"])
 
         self.assertTrue(result.success)
         self.assertEqual(1, result.student_id)
-        self.assertEqual([(2, "B", "VESPERTINO", "enc_1")], service.calls)
+        self.assertEqual([("Juan Perez", 2, "B", "VESPERTINO", "enc_1")], service.calls)
         self.assertEqual([(1, "enc_1")], pkl.saved)
 
     def test_zero_faces_returns_controlled_error(self):
@@ -48,7 +48,7 @@ class RegistrationUseCaseTests(unittest.TestCase):
         pkl = FakePklRepository()
         use_case = RegistrationUseCase(service, pkl)
 
-        result = use_case.register_from_detected_faces(2, "B", "VESPERTINO", [])
+        result = use_case.register_from_detected_faces("Juan Perez", 2, "B", "VESPERTINO", [])
 
         self.assertFalse(result.success)
         self.assertIsNone(result.student_id)
@@ -61,7 +61,7 @@ class RegistrationUseCaseTests(unittest.TestCase):
         pkl = FakePklRepository()
         use_case = RegistrationUseCase(service, pkl)
 
-        result = use_case.register_from_detected_faces(2, "B", "VESPERTINO", ["enc_1", "enc_2"])
+        result = use_case.register_from_detected_faces("Juan Perez", 2, "B", "VESPERTINO", ["enc_1", "enc_2"])
 
         self.assertFalse(result.success)
         self.assertIsNone(result.student_id)

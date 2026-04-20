@@ -24,7 +24,7 @@ class RegistrationUseCase:
     def initialize(self) -> None:
         self.registration_service.initialize()
 
-    def register_from_detected_faces(self, grado: int, letra: str, turno: str, encodings) -> RegistrationResult:
+    def register_from_detected_faces(self, nombre: str, grado: int, letra: str, turno: str, encodings) -> RegistrationResult:
         if len(encodings) == 0:
             return RegistrationResult(
                 success=False,
@@ -38,11 +38,11 @@ class RegistrationUseCase:
             )
 
         encoding = encodings[0]
-        student_id = self.registration_service.register_student_with_encoding(grado, letra, turno, encoding)
+        student_id = self.registration_service.register_student_with_encoding(nombre, grado, letra, turno, encoding)
         self.pkl_repository.save_student_biometric(student_id, encoding)
 
         return RegistrationResult(
             success=True,
             student_id=student_id,
-            message=f"Registro exitoso. Estudiante #{student_id} ({grado}{letra}-{turno}).",
+            message=f"Registro exitoso. {nombre} #{student_id} ({grado}{letra}-{turno}).",
         )

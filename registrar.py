@@ -8,7 +8,13 @@ from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
 from src.infrastructure.recognition.face_engine import detect_face_encodings_from_frame
 
 
-def solicitar_datos_grupo():
+def solicitar_datos_estudiante_y_grupo():
+    while True:
+        nombre = input("Nombre del estudiante: ").strip()
+        if nombre:
+            break
+        print("Dato invalido. El nombre es obligatorio.")
+
     while True:
         grado_raw = input("Grado del estudiante (1-3): ").strip()
         if grado_raw in {"1", "2", "3"}:
@@ -28,7 +34,7 @@ def solicitar_datos_grupo():
             break
         print("Dato invalido. Usa MATUTINO o VESPERTINO.")
 
-    return grado, letra, turno
+    return nombre, grado, letra, turno
 
 def registrar_usuario():
     recognition_settings = get_recognition_settings()
@@ -38,14 +44,14 @@ def registrar_usuario():
     )
     use_case.initialize()
 
-    grado, letra, turno = solicitar_datos_grupo()
+    nombre, grado, letra, turno = solicitar_datos_estudiante_y_grupo()
     cap = open_camera()
 
     if cap is None:
         print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
         return
 
-    print(f"Registrando estudiante de {grado}{letra}-{turno}. Presiona 'S' para capturar o 'Q' para salir.")
+    print(f"Registrando a {nombre} en {grado}{letra}-{turno}. Presiona 'S' para capturar o 'Q' para salir.")
 
     while True:
         ret, frame = cap.read()
@@ -69,7 +75,7 @@ def registrar_usuario():
         
         if key == ord('s'):
             _, encodings = detect_face_encodings_from_frame(frame, scale=recognition_settings.scale)
-            result = use_case.register_from_detected_faces(grado, letra, turno, encodings)
+            result = use_case.register_from_detected_faces(nombre, grado, letra, turno, encodings)
 
             if result.success:
                 print(result.message)
