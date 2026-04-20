@@ -220,6 +220,28 @@ Cobertura actual de pruebas:
 - Flujo de registro de estudiante + persistencia de biometria.
 - Integracion SQLite para `students.py` (crear/cargar biometria).
 - Integracion SQLite para `access.py` (persistencia y validacion de tipo de usuario).
+- Integracion SQLite para vistas/reporting (`vw_estudiantes`, `vw_logs_acceso`, `vw_intentos_fallidos`).
+
+## Consultas administrativas seguras (SQLite)
+
+Se agregaron vistas y utilidades para reporting sin exponer SQL dinamico inseguro:
+
+- `vw_estudiantes`
+- `vw_logs_acceso`
+- `vw_intentos_fallidos`
+
+Script CLI:
+
+```bash
+python scripts/db_queries.py students --active true --limit 50
+python scripts/db_queries.py logs --tipo-usuario ESTUDIANTE --acceso-concedido true --limit 100
+python scripts/db_queries.py failed --from-datetime 2026-04-01T00:00:00 --to-datetime 2026-04-30T23:59:59
+```
+
+Opciones de salida:
+
+- `--format table` (default)
+- `--format json`
 
 ## 📌 Notas generales de uso
 
