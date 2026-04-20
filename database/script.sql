@@ -100,3 +100,55 @@ ON datos_biometricos (tipo_usuario, id_usuario_ref);
 
 CREATE INDEX ix_logs_acceso_usuario_fecha
 ON logs_acceso (tipo_usuario, id_usuario_ref, fecha_hora DESC);
+
+CREATE INDEX ix_estudiantes_catalogos
+ON estudiantes (id_grado, id_grupo, id_turno, estado_activo);
+
+-- ==============================================================================
+-- VISTAS DE CONSULTA / REPORTING
+-- ==============================================================================
+
+CREATE VIEW vw_estudiantes AS
+SELECT
+    e.id_estudiante,
+    e.nombre,
+    gd.clave AS grado,
+    gp.clave AS grupo,
+    tr.clave AS turno,
+    e.estado_activo
+FROM estudiantes e
+JOIN grados gd ON gd.id_grado = e.id_grado
+JOIN grupos gp ON gp.id_grupo = e.id_grupo
+JOIN turnos tr ON tr.id_turno = e.id_turno;
+
+CREATE VIEW vw_logs_acceso AS
+SELECT
+    l.id_log,
+    l.fecha_hora,
+    l.tipo_usuario,
+    l.id_usuario_ref,
+    CASE
+        WHEN l.tipo_usuario = 'ESTUDIANTE' THEN e.nombre
+        WHEN l.tipo_usuario = 'PERSONAL' THEN p.nombre_completo
+        ELSE NULL
+    END AS nombre_usuario,
+    l.tipo_evento,
+    l.acceso_concedido
+FROM logs_acceso l
+LEFT JOIN estudiantes e
+    ON l.tipo_usuario = 'ESTUDIANTE'
+    AND e.id_estudiante = l.id_usuario_ref
+LEFT JOIN personal_administrativo p
+    ON l.tipo_usuario = 'PERSONAL'
+    AND p.id_personal = l.id_usuario_ref;
+
+CREATE VIEW vw_intentos_fallidos AS
+SELECT
+    id_log,
+    fecha_hora,
+    tipo_usuario,
+    id_usuario_ref,
+    nombre_usuario,
+    tipo_evento
+FROM vw_logs_acceso
+WHERE acceso_concedido = 0;
