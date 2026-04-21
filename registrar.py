@@ -1,9 +1,35 @@
 import tkinter as tk
 import threading
 import cv2
-import face_recognition
 import pickle
 import os
+from src.application.registration_service import RegistrationService
+from src.infrastructure.camera.opencv_camera import open_camera
+from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
+from src.infrastructure.recognition.face_engine import encode_single_face_from_frame
+
+
+def solicitar_datos_grupo():
+    while True:
+        grado_raw = input("Grado del estudiante (1-3): ").strip()
+        if grado_raw in {"1", "2", "3"}:
+            grado = int(grado_raw)
+            break
+        print("Dato invalido. El grado debe ser 1, 2 o 3.")
+
+    while True:
+        letra = input("Letra del grupo (A-Z): ").strip().upper()
+        if len(letra) == 1 and letra.isalpha():
+            break
+        print("Dato invalido. Ingresa una sola letra (A-Z).")
+
+    while True:
+        turno = input("Turno (MATUTINO/VESPERTINO): ").strip().upper()
+        if turno in {"MATUTINO", "VESPERTINO"}:
+            break
+        print("Dato invalido. Usa MATUTINO o VESPERTINO.")
+
+    return grado, letra, turno
 
 
 # ─── Paleta del dashboard ────────────────────────────────────────────────────
@@ -20,6 +46,7 @@ TEXT_MUTED   = "#64748b"
 
 
 def registrar_usuario():
+<<<<<<< HEAD
 
     def iniciar_captura():
         nombre = entry_nombre.get().strip().lower()
@@ -27,6 +54,23 @@ def registrar_usuario():
         if not nombre:
             label_estado.config(text="⚠  Ingresa un nombre", fg=ERROR)
             return
+=======
+    registration_service = RegistrationService(SQLiteRepository())
+    registration_service.initialize()
+
+    # Crear carpeta de datos si no existe
+    if not os.path.exists('data'):
+        os.makedirs('data')
+
+    grado, letra, turno = solicitar_datos_grupo()
+    cap = open_camera()
+
+    if cap is None:
+        print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
+        return
+
+    print(f"Registrando estudiante de {grado}{letra}-{turno}. Presiona 'S' para capturar o 'Q' para salir.")
+>>>>>>> 873b3de29623f304285549d0efb4c06f5eb18a0a
 
         ventana_registro.destroy()
 
@@ -35,9 +79,32 @@ def registrar_usuario():
 
         cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
+<<<<<<< HEAD
         while True:
             ret, frame = cap.read()
             if not ret:
+=======
+        key = cv2.waitKey(1) & 0xFF
+        
+        if key == ord('s'):
+            encoding = encode_single_face_from_frame(frame)
+
+            if encoding is not None:
+
+                id_estudiante = registration_service.register_student_with_encoding(
+                    grado,
+                    letra,
+                    turno,
+                    encoding,
+                )
+                
+                # Guardar respaldo en .pkl
+                nombre_archivo = f"est_{id_estudiante}.pkl"
+                with open(f"data/{nombre_archivo}", "wb") as f:
+                    pickle.dump(encoding, f)
+                
+                print(f"Registro exitoso. Estudiante #{id_estudiante} ({grado}{letra}-{turno}).")
+>>>>>>> 873b3de29623f304285549d0efb4c06f5eb18a0a
                 break
 
             alto, ancho, _ = frame.shape

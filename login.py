@@ -1,11 +1,19 @@
 import cv2
-import face_recognition
 import pickle
 import os
+import time
+from src.application.auth_service import AuthService
+from src.infrastructure.camera.opencv_camera import open_camera
+from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
+from src.infrastructure.recognition.face_engine import detect_face_encodings_from_frame, find_first_match
+
 
 def cargar_base_datos():
     rostros = []
     nombres = []
+    if not os.path.isdir("data"):
+        return rostros, nombres
+
     for archivo in os.listdir("data"):
         if archivo.endswith(".pkl"):
             with open(f"data/{archivo}", "rb") as f:
@@ -14,8 +22,28 @@ def cargar_base_datos():
     return rostros, nombres
 
 def login():
-    rostros_db, nombres_db = cargar_base_datos()
-    cap = cv2.VideoCapture(0)
+    auth_service = AuthService(SQLiteRepository())
+    auth_service.initialize()
+    rostros_db, nombres_db, ids_db = auth_service.load_known_students()
+
+    # Compatibilidad: usar archivos .pkl si aun no hay biometria en SQLite.
+    if not rostros_db:
+        rostros_db, nombres_db = cargar_base_datos()
+        ids_db = [0] * len(nombres_db)
+
+    if not rostros_db:
+        print("No hay biometria registrada. Ejecuta primero registrar.py")
+        return
+
+    cap = open_camera()
+
+    if cap is None:
+        print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
+        return
+
+    # Evita registrar el mismo acceso en cada frame mientras la persona sigue frente a camara.
+    ultima_bitacora = {}
+    cooldown_segundos = 8.0
 
     while True:
         ret, frame = cap.read()
@@ -26,25 +54,26 @@ def login():
         centro = (ancho // 2, alto // 2)
         ejes = (int(ancho * 0.25), int(alto * 0.4))
         
-        # Procesar frame (escala 1/4 para velocidad)
-        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
-        rgb_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
-
-        boxes = face_recognition.face_locations(rgb_small)
-        encodings = face_recognition.face_encodings(rgb_small, boxes)
+        _, encodings = detect_face_encodings_from_frame(frame, scale=0.25)
 
         color_oval = (255, 255, 255) # Blanco por defecto
         mensaje = "ESPERANDO ROSTRO..."
 
         for face_encoding in encodings:
             # Comparar con la base de datos
-            matches = face_recognition.compare_faces(rostros_db, face_encoding, tolerance=0.5)
-            
-            if True in matches:
-                idx = matches.index(True)
+            idx = find_first_match(rostros_db, face_encoding, tolerance=0.5)
+
+            if idx >= 0:
                 nombre_usuario = nombres_db[idx].upper()
                 mensaje = f"ACCESO CONCEDIDO: {nombre_usuario}"
                 color_oval = (0, 255, 0) # Verde
+                if idx < len(ids_db) and ids_db[idx] > 0:
+                    id_estudiante = ids_db[idx]
+                    ahora = time.monotonic()
+                    ultimo = ultima_bitacora.get(id_estudiante, 0.0)
+                    if ahora - ultimo >= cooldown_segundos:
+                        auth_service.log_access(id_estudiante, True)
+                        ultima_bitacora[id_estudiante] = ahora
             else:
                 mensaje = "ACCESO DENEGADO"
                 color_oval = (0, 0, 255) # Rojo
