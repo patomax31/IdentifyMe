@@ -1,4 +1,6 @@
 import cv2
+from typing import Callable, Optional
+
 from src.application.registration_service import RegistrationService
 from src.application.registration_use_case import RegistrationUseCase
 from src.core.config import get_recognition_settings
@@ -36,7 +38,13 @@ def solicitar_datos_estudiante_y_grupo():
 
     return nombre, grado, letra, turno
 
-def registrar_usuario():
+def _notify(state_callback: Optional[Callable[[str], None]], message: str) -> None:
+    if state_callback is not None:
+        state_callback(message)
+
+
+def registrar_usuario(state_callback: Optional[Callable[[str], None]] = None):
+    _notify(state_callback, "Inicializando registro biometrico...")
     recognition_settings = get_recognition_settings()
     use_case = RegistrationUseCase(
         registration_service=RegistrationService(SQLiteRepository()),
@@ -48,10 +56,14 @@ def registrar_usuario():
     cap = open_camera()
 
     if cap is None:
-        print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
+        message = "No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo."
+        print(message)
+        _notify(state_callback, message)
         return
 
-    print(f"Registrando a {nombre} en {grado}{letra}-{turno}. Presiona 'S' para capturar o 'Q' para salir.")
+    start_message = f"Registrando a {nombre} en {grado}{letra}-{turno}. Presiona 'S' para capturar o 'Q' para salir."
+    print(start_message)
+    _notify(state_callback, start_message)
 
     while True:
         ret, frame = cap.read()
@@ -79,15 +91,18 @@ def registrar_usuario():
 
             if result.success:
                 print(result.message)
+                _notify(state_callback, result.message)
                 break
 
             print(result.message)
+            _notify(state_callback, result.message)
 
         if key == ord('q'):
             break
 
     cap.release()
     cv2.destroyAllWindows()
+    _notify(state_callback, "Registro biometrico finalizado.")
 
 if __name__ == "__main__":
     registrar_usuario()
