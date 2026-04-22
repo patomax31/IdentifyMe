@@ -1,6 +1,6 @@
-# Face Recognition Biometric Login
+# IdentifyMe
 
-Sistema biométrico facial embebido para la identificación y verificación de usuarios a partir de imágenes faciales capturadas por una cámara digital.
+IdentifyMe es un sistema de control de acceso mediante datos biométricos faciales en una Raspberry Pi 5
 
 ## 📌 Estructura del proyecto
 
