@@ -4,19 +4,20 @@ import pickle
 import os
 from picamera2 import Picamera2
 from database.sqlite_manager import initialize_database, create_student, save_student_biometric
+from configBase import load_config
 
 
-def abrir_camara():
+def abrir_camara(config):
     # Usar Picamera2 para Raspberry Pi
     try:
         picam2 = Picamera2()
-        width = int(os.getenv("CAMERA_WIDTH", "640"))
-        height = int(os.getenv("CAMERA_HEIGHT", "480"))
+        width = config["camera"]["width"]
+        height = config["camera"]["height"]
         
-        config = picam2.create_preview_configuration(
+        cam_config = picam2.create_preview_configuration(
             main={"format": 'XRGB8888', "size": (width, height)}
         )
-        picam2.configure(config)
+        picam2.configure(cam_config)
         picam2.start()
         return picam2
     except Exception as e:
@@ -56,6 +57,9 @@ def solicitar_datos_grupo():
     return nombre, grado, letra, turno
 
 def registrar_usuario():
+    # Cargar configuración desde configBase
+    config = load_config()
+    
     initialize_database()
 
     # Crear carpeta de datos si no existe
@@ -63,7 +67,7 @@ def registrar_usuario():
         os.makedirs('data')
 
     nombre, grado, letra, turno = solicitar_datos_grupo()
-    cap = abrir_camara()
+    cap = abrir_camara(config)
 
     if cap is None:
         print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
@@ -71,17 +75,22 @@ def registrar_usuario():
 
     print(f"Registrando a {nombre} ({grado}{letra}-{turno}). Presiona 'S' para capturar o 'Q' para salir.")
 
+    # Configación del óvalo (desde configBase)
+    oval_width_ratio = config["registro"]["oval_width_ratio"]
+    oval_height_ratio = config["registro"]["oval_height_ratio"]
+    line_thickness = config["registro"]["line_thickness"]
+
     while True:
         frame = cap.capture_array()
         if frame is None: break
 
-        # Configuración del óvalo guía
+        # Configuración del óvalo guía (desde config)
         alto, ancho, _ = frame.shape
         centro = (ancho // 2, alto // 2)
-        ejes = (int(ancho * 0.25), int(alto * 0.4)) # Proporción para el rostro
+        ejes = (int(ancho * oval_width_ratio), int(alto * oval_height_ratio))
         
         # Dibujar Interfaz (Óvalo y texto)
-        cv2.ellipse(frame, centro, ejes, 0, 0, 360, (255, 255, 0), 2)
+        cv2.ellipse(frame, centro, ejes, 0, 0, 360, (255, 255, 0), line_thickness)
         cv2.putText(frame, "Encuadra tu rostro aqui", (centro[0]-120, centro[1]-ejes[1]-20), 
                     cv2.FONT_HERSHEY_DUPLEX, 0.7, (255, 255, 0), 1)
         cv2.putText(frame, "Presiona 'S' para Guardar", (10, alto - 20), 

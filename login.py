@@ -5,18 +5,19 @@ import os
 import time
 from picamera2 import Picamera2
 from database.sqlite_manager import initialize_database, load_student_biometrics, log_access, get_student_info
+from configBase import load_config
 
-def abrir_camara():
+def abrir_camara(config):
     """Inicializa la cámara de Raspberry Pi"""
     try:
         picam2 = Picamera2()
-        width = int(os.getenv("CAMERA_WIDTH", "480"))
-        height = int(os.getenv("CAMERA_HEIGHT", "800"))
+        width = config["camera"]["width"]
+        height = config["camera"]["height"]
         
-        config = picam2.create_preview_configuration(
+        cam_config = picam2.create_preview_configuration(
             main={"format": 'XRGB8888', "size": (width, height)}
         )
-        picam2.configure(config)
+        picam2.configure(cam_config)
         picam2.start()
         return picam2
     except Exception as e:
@@ -37,7 +38,7 @@ def cargar_base_datos():
                 nombres.append(archivo.replace(".pkl", ""))
     return rostros, nombres
 
-def dibujar_cuadro_amigable(frame, top, right, bottom, left, color, grosor=3):
+def dibujar_cuadro_amigable(frame, top, right, bottom, left, color, grosor):
     """Dibuja un cuadro redondeado amigable sin parpadeos"""
     # Cuadro principal
     cv2.rectangle(frame, (left, top), (right, bottom), color, grosor)
@@ -72,6 +73,9 @@ def dibujar_datos_estudiante(frame, nombre, grado, letra, turno, id_estudiante, 
     cv2.putText(frame, f"ID: #{id_estudiante}", (60, y_offset + 80), cv2.FONT_HERSHEY_DUPLEX, 1.1, (0, 255, 0), 2)
 
 def login():
+    # Cargar configuración desde configBase
+    config = load_config()
+    
     initialize_database()
     rostros_db, nombres_db, ids_db = load_student_biometrics()
 
@@ -83,20 +87,24 @@ def login():
         print("No hay biometria registrada. Ejecuta primero registrar.py")
         return
 
-    cap = abrir_camara()
+    cap = abrir_camara(config)
 
     if cap is None:
         print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
         return
 
-    # 🔧 CONFIGURACIÓN DE ESTADO
+    # 🔧 CONFIGURACIÓN DE ESTADO (desde configBase)
     ultima_bitacora = {}
-    cooldown_segundos = 8.0
+    cooldown_segundos = config["login"]["cooldown_seconds"]
+    scanning_time_seconds = config["login"]["scanning_time_seconds"]
+    state_display_seconds = config["login"]["state_display_seconds"]
     
     frame_count = 0
-    process_every_n_frames = 3
+    process_every_n_frames = config["login"]["process_every_n_frames"]
     consecutive_confirmed = 0
-    frames_to_confirm = 2
+    frames_to_confirm = config["login"]["frames_to_confirm"]
+    tolerance = config["login"]["tolerance"]
+    line_thickness = config["ui"]["line_thickness"]
     
     # Estados: esperando, detectado, escaneando, verificado, rechazado
     estado_actual = "esperando"
@@ -125,8 +133,8 @@ def login():
             
             boxes = face_recognition.face_locations(rgb_small)
             encodings = face_recognition.face_encodings(rgb_small, boxes)
-            
-            if len(boxes) > 0 and len(encodings) > 0:
+             (usando tolerance de config)
+                    matches = face_recognition.compare_faces(rostros_db, face_encoding, tolerance=tolerance
                 for i, face_encoding in enumerate(encodings):
                     top, right, bottom, left = boxes[i]
                     top, right, bottom, left = top*4, right*4, bottom*4, left*4
@@ -174,15 +182,21 @@ def login():
         
         elif estado_actual == "detectado":
             if tiempo_en_estado > 1.2:  # Espera suave
-                estado_actual = "escaneando"
+                estadof"ESCANEANDO - NO MOVERSE ({scanning_time_seconds:.0f}s)"
+            color_mensaje = (0, 255, 255)
+            color_cuadro = (0, 255, 255)
+            
+            # Si pasó el tiempo de escaneo, reintentar
+            if tiempo_en_estado > scanning_time_seconds:
+                estado_actual = "esperando"
                 tiempo_cambio_estado = time.time()
-            mensaje = "ROSTRO DETECTADO"
+                consecutive_confirmed = 0
             color_mensaje = (100, 100, 100)
             color_cuadro = (100, 100, 100)
         
         elif estado_actual == "escaneando":
             mensaje = "ESCANEANDO - NO MOVERSE"
-            color_mensaje = (0, 255, 255)
+            color_mensaje = (0, 25state_display_seconds255)
             color_cuadro = (0, 255, 255)
         
         elif estado_actual == "verificado":
@@ -200,7 +214,7 @@ def login():
                 tiempo_cambio_estado = time.time()
                 consecutive_confirmed = 0
             mensaje = "ROSTRO NO RECONOCIDO - R: REINTENTAR"
-            color_mensaje = (0, 0, 255)
+            color_mensaje = (0, 0, 255)line_thickness
             color_cuadro = (0, 0, 255)
         
         # 📦 DIBUJAR CUADROS SIN PARPADEO

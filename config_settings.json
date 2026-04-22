@@ -1,0 +1,23 @@
+{
+    "registro": {
+        "oval_width_ratio": 0.25,
+        "oval_height_ratio": 0.4,
+        "line_thickness": 2
+    },
+    "login": {
+        "tolerance": 0.5,
+        "process_every_n_frames": 3,
+        "frames_to_confirm": 2,
+        "cooldown_seconds": 8.0,
+        "scanning_time_seconds": 3.0,
+        "state_display_seconds": 2.0
+    },
+    "camera": {
+        "width": 640,
+        "height": 480
+    },
+    "ui": {
+        "line_thickness": 3,
+        "font_scale": 1.1
+    }
+}
