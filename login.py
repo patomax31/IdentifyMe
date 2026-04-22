@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import cv2
 import pickle
 import os
@@ -65,17 +66,34 @@ def login():
     if not rostros_db:
         rostros_db, nombres_db = cargar_base_datos()
         ids_db = [0] * len(nombres_db)
+=======
+"""
+Módulo de lógica de autenticación facial - LÓGICA PURA
 
-    if not rostros_db:
-        print("No hay biometria registrada. Ejecuta primero registrar.py")
-        return
+Contiene solo la lógica de negocio para:
+- Carga de datos biométricos
+- Verificación de rostros
+- Registro de acceso
+- Detección facial
+>>>>>>> 2e2d95e (UI de la cargainicial de dependencias test_setup.py)
 
-    cap = open_camera()
+La interfaz gráfica está en login_ui.py
+"""
+import pickle
+import os
+import time
 
-    if cap is None:
-        print("No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo.")
-        return
+# Importaciones del proyecto
+try:
+    from src.application.auth_service import AuthService
+    from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
+    from src.infrastructure.recognition.face_engine import detect_face_encodings_from_frame, find_first_match
+    USE_ADVANCED = True
+except ImportError:
+    USE_ADVANCED = False
 
+
+<<<<<<< HEAD
     # Evita registrar el mismo acceso en cada frame mientras la persona sigue frente a camara.
     ultima_bitacora = {}
     cooldown_segundos = 8.0
@@ -117,14 +135,152 @@ def login():
         cv2.ellipse(frame, centro, ejes, 0, 0, 360, color_oval, 2)
         cv2.rectangle(frame, (0, 0), (ancho, 40), (0,0,0), -1)
         cv2.putText(frame, mensaje, (20, 30), cv2.FONT_HERSHEY_DUPLEX, 0.8, color_oval, 2)
+=======
+# ═══════════════════════════════════════════════════════════════════════════════
+# SERVICIO DE AUTENTICACIÓN FACIAL
+# ═══════════════════════════════════════════════════════════════════════════════
+class FaceLoginService:
+    """
+    Servicio de autenticación facial - LÓGICA DE NEGOCIO PURA
+    
+    Responsabilidades:
+    - Cargar datos biométricos
+    - Verificar rostros contra la base de datos
+    - Registrar acceso
+    - Detectar rostros en frames
+    """
+    
+    def __init__(self):
+        """Inicializa el servicio de login"""
+        self.rostros_db = []
+        self.nombres_db = []
+        self.ids_db = []
+        self.datos_estudiantes = {}
+        self.ultima_bitacora = {}
+        self.cooldown_segundos = 3.0
+        self._load_recognition_data()
+    
+    def _load_recognition_data(self):
+        """Carga los datos de reconocimiento facial desde la base de datos"""
+        try:
+            if USE_ADVANCED:
+                auth_service = AuthService(SQLiteRepository())
+                auth_service.initialize()
+                self.rostros_db, self.nombres_db, self.ids_db = auth_service.load_known_students()
+            
+            if not self.rostros_db:
+                self._load_pkl_database()
+        except Exception as e:
+            print(f"Error cargando datos de reconocimiento: {e}")
+    
+    def _load_pkl_database(self):
+        """Carga base de datos desde archivos .pkl como fallback"""
+        if not os.path.isdir("data"):
+            return
+        
+        for archivo in sorted(os.listdir("data")):
+            if archivo.endswith(".pkl"):
+                try:
+                    with open(f"data/{archivo}", "rb") as f:
+                        self.rostros_db.append(pickle.load(f))
+                        nombre = archivo.replace(".pkl", "")
+                        self.nombres_db.append(nombre)
+                        self.ids_db.append(0)
+                except Exception as e:
+                    print(f"Error cargando {archivo}: {e}")
+    
+    def get_users_count(self):
+        """Retorna la cantidad de usuarios registrados"""
+        return len(self.rostros_db)
+    
+    def has_users(self):
+        """Verifica si hay usuarios registrados"""
+        return len(self.rostros_db) > 0
+    
+    def verify_face(self, encoding):
+        """Verifica un encoding facial contra la base de datos"""
+        try:
+            if USE_ADVANCED:
+                idx = find_first_match(self.rostros_db, encoding, tolerance=0.5)
+            else:
+                idx = -1
+            
+            if idx >= 0 and idx < len(self.nombres_db):
+                name = self.nombres_db[idx]
+                user_id = self.ids_db[idx] if idx < len(self.ids_db) else 0
+                
+                user_data = {
+                    "nombre": name,
+                    "id": user_id,
+                    "salon": "---",
+                    "edad": "---"
+                }
+                return True, user_data
+            
+            return False, None
+        except Exception as e:
+            print(f"Error verificando rostro: {e}")
+            return False, None
+    
+    def log_access(self, user_id, success):
+        """Registra un intento de acceso en la base de datos"""
+        if user_id <= 0:
+            return False
+        
+        try:
+            ahora = time.monotonic()
+            ultimo = self.ultima_bitacora.get(user_id, 0.0)
+            
+            if ahora - ultimo < self.cooldown_segundos:
+                return False
+            
+            if USE_ADVANCED:
+                auth = AuthService(SQLiteRepository())
+                auth.log_access(user_id, success)
+            
+            self.ultima_bitacora[user_id] = ahora
+            return True
+        except Exception as e:
+            print(f"Error registrando acceso: {e}")
+            return False
+    
+    def detect_face_in_frame(self, frame):
+        """Detecta rostros en un frame"""
+        try:
+            if USE_ADVANCED:
+                face_locations, encodings = detect_face_encodings_from_frame(frame, scale=0.25)
+                return face_locations, encodings
+            else:
+                return [], []
+        except Exception as e:
+            print(f"Error detectando rostro: {e}")
+            return [], []
 
-        cv2.imshow("Login Biometrico", frame)
+>>>>>>> 2e2d95e (UI de la cargainicial de dependencias test_setup.py)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+# ═══════════════════════════════════════════════════════════════════════════════
+# IMPORTACIÓN DE UI Y PUNTO DE ENTRADA
+# ═══════════════════════════════════════════════════════════════════════════════
+def login(parent=None):
+    """
+    Inicia la interfaz de login con reconocimiento facial.
+    
+    The UI logic is in login_ui.py, this module only has the business logic.
+    
+    Args:
+        parent: Widget padre Tkinter (opcional)
+    """
+    from login_ui import FaceLoginUI
+    
+    # Crear servicio con lógica pura
+    service = FaceLoginService()
+    
+    # Crear UI y pasar el servicio
+    ui = FaceLoginUI(login_service=service, parent=parent)
+    
+    # Iniciar aplicación
+    ui.run()
 
-    cap.release()
-    cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     login()

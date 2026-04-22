@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Arquitectura de Software - Sistema de Reconocimiento Facial
 
 ## 📋 Índice
@@ -41,10 +42,57 @@ face-recognition/
 ├── README.md                         # Documentación de uso
 ├── SETUP_RASPBERRY.md                # Guía de instalación en RPi
 └── GUIA_INSTALACION_WINDOWS.md       # Guía de instalación en Windows
+=======
+# 🏗️ ARQUITECTURA - Sistema de Verificación de Dependencias
+
+## Diagrama General de Componentes
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     APLICACIÓN USUARIO                          │
+│                                                                  │
+│              python test_setup.py                              │
+│                       ↓                                         │
+│              ┌─────────────────────┐                            │
+│              │  SystemCheckUI      │ (tk.Tk)                  │
+│              │  (Interfaz Gráfica) │                            │
+│              └──────────┬──────────┘                            │
+│                        ↓                                         │
+│          ┌──────────────────────────────┐                       │
+│          │    Thread de Validaciones    │                       │
+│          └───────────┬──────────────────┘                       │
+│                      ↓                                           │
+│          ┌──────────────────────────────┐                       │
+│          │   SystemValidator            │                       │
+│          │   - Dependencias             │                       │
+│          │   - Hardware                 │                       │
+│          │   - Base de Datos            │                       │
+│          └───────────┬──────────────────┘                       │
+│                      ↓                                           │
+│     ┌────────────────┴──────────────────┬────────────────┐     │
+│     ↓                                    ↓                ↓     │
+│  Validar              Validar             Validar              │
+│  Dependencias         Hardware            BD                   │
+│  (6 módulos)          (3 componentes)   (SQLite)              │
+│                                                                 │
+│         Resultados → UI Update → Mostrar Estado               │
+│                                                                 │
+│     ¿TODO OK?                                                  │
+│     ├─→ SÍ → Habilitar "Continuar"                            │
+│     └─→ NO → Habilitar "Reintentar"                           │
+│                                                                 │
+│              ↓                          ↓                       │
+│    [Continuar]                  [Reintentar]                   │
+│         ↓                             ↓                         │
+│      Abrir              Reiniciar ValidacionesThread          │
+│      FaceLoginUI                                               │
+└─────────────────────────────────────────────────────────────────┘
+>>>>>>> 2e2d95e (UI de la cargainicial de dependencias test_setup.py)
 ```
 
 ---
 
+<<<<<<< HEAD
 ## 🔄 Flujo de Procesos
 
 ### 1️⃣ **Proceso de Registro (`registrar.py`)**
@@ -172,11 +220,77 @@ face-recognition/
 │ - ID Usuario: id_estudiante          │
 │ - Acceso Concedido: 1 (verdadero)    │
 │ - Timestamp: CURRENT_TIMESTAMP       │
+=======
+## Estructura de Clases
+
+```
+┌──────────────────────────────────────┐
+│         Enumeraciones                │
+├──────────────────────────────────────┤
+│ • CheckStatus                        │
+│   - PENDING                          │
+│   - CHECKING                         │
+│   - SUCCESS                          │
+│   - ERROR                            │
+└──────────────────────────────────────┘
+
+┌──────────────────────────────────────┐
+│       Dataclasses                    │
+├──────────────────────────────────────┤
+│ • CheckResult                        │
+│   - name: str                        │
+│   - category: str                    │
+│   - status: CheckStatus              │
+│   - message: str                     │
+│   - error_details: str               │
+└──────────────────────────────────────┘
+
+┌──────────────────────────────────────┐
+│      SystemValidator                │
+├──────────────────────────────────────┤
+│ __init__(callback)                   │
+│ validate_dependencies()              │
+│ validate_camera()                    │
+│ validate_display()                   │
+│ validate_servo()                     │
+│ validate_database()                  │
+│ run_all_checks()                     │
+└──────────────────────────────────────┘
+
+┌──────────────────────────────────────┐
+│      LoadingCircle(tk.Canvas)        │
+├──────────────────────────────────────┤
+│ __init__(parent, size, color)        │
+│ start()                              │
+│ stop()                               │
+│ _animate()                           │
+└──────────────────────────────────────┘
+
+┌──────────────────────────────────────┐
+│    CheckItemWidget(tk.Frame)         │
+├──────────────────────────────────────┤
+│ __init__(parent, result)             │
+│ update_status(result)                │
+└──────────────────────────────────────┘
+
+┌──────────────────────────────────────┐
+│     SystemCheckUI(tk.Tk)             │
+├──────────────────────────────────────┤
+│ __init__()                           │
+│ _configure_styles()                  │
+│ _create_widgets()                    │
+│ _start_validation()                  │
+│ _on_check_result(result)             │
+│ _update_check_result(result)         │
+│ _on_validation_complete()            │
+│ _on_continue()                       │
+>>>>>>> 2e2d95e (UI de la cargainicial de dependencias test_setup.py)
 └──────────────────────────────────────┘
 ```
 
 ---
 
+<<<<<<< HEAD
 ## 🔧 Componentes Clave
 
 ### 1. **Módulo de Captura de Video (`abrir_camara()`)**
@@ -600,10 +714,71 @@ vector_numpy = np.array(json.loads(vector_json))
 │tipo_evento       │
 │acceso_concedido  │
 └──────────────────┘
+=======
+## Flujo de Datos
+
+### 1. Inicialización
+```
+SystemCheckUI.__init__()
+    ↓
+_configure_styles()  (Cargar colores)
+    ↓
+_create_widgets()    (Construir UI)
+    ├─ Título
+    ├─ LoadingCircle
+    ├─ Barra de Progreso
+    ├─ Container de verificaciones
+    └─ Botones
+    ↓
+after(500ms) → _start_validation()
+```
+
+### 2. Validaciones
+```
+_start_validation()
+    ↓
+Thread.start()
+    └─ SystemValidator.run_all_checks()
+        ├─ validate_dependencies()
+        │   ├─ Intenta importar cv2
+        │   ├─ Llama callback(result)
+        │   └─ after() → _update_check_result()
+        │
+        ├─ validate_camera()
+        │   ├─ cv2.VideoCapture(0)
+        │   └─ after() → _update_check_result()
+        │
+        ├─ validate_display()
+        │   └─ Crear Tk temporal
+        │
+        ├─ validate_servo()
+        │   └─ Simulado
+        │
+        └─ validate_database()
+            ├─ sqlite3.connect()
+            └─ after() → _update_check_result()
+    ↓
+_on_validation_complete()
+```
+
+### 3. Actualización de UI (Thread-Safe)
+```
+Callback desde Thread
+    ↓
+self.after(0, lambda: _update_check_result())
+    ↓
+MainThread
+    ├─ CheckItemWidget.update_status()
+    ├─ Actualizar ícono/color
+    ├─ Actualizar texto
+    ├─ Calcular progreso
+    └─ Llamar _on_validation_complete() si termina
+>>>>>>> 2e2d95e (UI de la cargainicial de dependencias test_setup.py)
 ```
 
 ---
 
+<<<<<<< HEAD
 ## 🚀 Flujo de Ejecución Resumido
 
 1. **Usuario ejecuta `registrar.py`**
@@ -667,3 +842,366 @@ vector_numpy = np.array(json.loads(vector_json))
 **Documento generado**: Marzo 2026  
 **Versión**: 1.0  
 **Estado**: Arquitectura base funcional
+=======
+## Estados y Transiciones
+
+### Estados de Verificación Individual
+
+```
+     ┌──────────────┐
+     │   PENDING    │
+     │  • No hace    │
+     │    nada aún  │
+     └──────┬───────┘
+            │
+            │ Comenzar validación
+            ↓
+     ┌──────────────┐
+     │  CHECKING    │ ← Ícono: ◐ (azul claro)
+     │ • Ejecutando │
+     │   validación │
+     └──────┬───────┘
+            │
+      ¿Validación OK?
+      ├─→ SÍ          ├─→ NO
+      │                │
+      ↓                ↓
+┌──────────────┐  ┌──────────────┐
+│  SUCCESS     │  │  ERROR       │
+│ Ícono: ✓     │  │ Ícono: ✗     │
+│ Color: Azul  │  │ Color: Gris  │
+│ Marino       │  │              │
+└──────────────┘  └──────────────┘
+```
+
+### Estados de la Aplicación
+
+```
+Inicial
+  ↓
+Validando (Progress: 0-100%)
+  ├─→ [Si completa exitoso]
+  │   ├─ Mostrar: "✓ Sistema listo"
+  │   ├─ Habilitar: Botón "Continuar"
+  │   └─ Opción: Abrir FaceLoginUI
+  │
+  └─→ [Si hay errores]
+      ├─ Mostrar: "✗ N errores"
+      ├─ Habilitar: Botón "Reintentar"
+      └─ Opción: Corregir e reintentar
+```
+
+---
+
+## Integración con Componentes Externos
+
+```
+┌────────────────────────────────────────────────┐
+│          test_setup.py (Principal)             │
+│                                                │
+│  Valida existencia de:                         │
+│  ├─ cv2              ← NECESARIO               │
+│  ├─ face_recognition ← NECESARIO               │
+│  ├─ numpy            ← NECESARIO               │
+│  ├─ dlib             ← NECESARIO               │
+│  ├─ PIL              ← NECESARIO               │
+│  ├─ tkinter          ← NECESARIO               │
+│  ├─ Puerto cámara    ← NECESARIO               │
+│  └─ database/        ← NECESARIO               │
+│                                                │
+│       ↓                                        │
+│  [Si todo OK]                                  │
+│       ↓                                        │
+│  ┌──────────────────────┐                      │
+│  │ Intenta importar:    │                      │
+│  │ from login_ui import │                      │
+│  │   FaceLoginUI        │                      │
+│  └─────────┬────────────┘                      │
+│            │                                   │
+│     ¿Existe?                                   │
+│     ├─ SÍ → Abrir FaceLoginUI                 │
+│     └─ NO → Mostrar mensaje y cerrar          │
+└────────────────────────────────────────────────┘
+```
+
+---
+
+## Threading Seguro
+
+### Operación No Thread-Safe ❌
+```python
+# INCORRECTO - Acceso directo desde thread:
+validator_thread:
+    resultado = validar()
+    self.label.config(text="OK")  # ❌ RuntimeError
+```
+
+### Operación Thread-Safe ✓
+```python
+# CORRECTO - Usar after() para actualizar desde main thread:
+validator_thread:
+    resultado = validar()
+    self.after(0, lambda: self.label.config(text="OK"))  # ✓
+```
+
+### Implementación en el Código
+```python
+def validate_camera(self) -> CheckResult:
+    # En thread secundario
+    result = CheckResult(...)
+    
+    # Notificar UI de forma segura
+    self.callback(result)  # → self._on_check_result()
+    # Que llamará:
+    # self.after(0, lambda: self._update_check_result(result))
+
+def _on_check_result(self, result):
+    # Desde el thread que llamó callback()
+    self.after(0, lambda: self._update_check_result(result))
+    # Ahora SÍ se puede actualizar UI con seguridad
+```
+
+---
+
+## Puntos de Personalización
+
+```
+SystemCheckUI
+│
+├─ Colores (_configure_styles)
+│  └─ self.colors["success"]
+│  └─ self.colors["error"]
+│  └─ self.colors["checking"]
+│
+├─ Validaciones (SystemValidator.run_all_checks)
+│  └─ validate_dependencies()
+│  └─ validate_camera()
+│  └─ validate_display()
+│  └─ validate_servo()
+│  └─ validate_database()
+│  └─ + TUS PROPIAS VALIDACIONES
+│
+├─ Mensajes (_create_widgets)
+│  └─ Título de ventana
+│  └─ Título de verificación
+│  └─ Textos de botones
+│
+├─ UI (LoadingCircle, CheckItemWidget)
+│  └─ Tamaño del círculo
+│  └─ Velocidad de animación
+│  └─ Estilos de items
+│
+└─ Comportamiento (_on_validation_complete)
+   └─ Acción al completar
+   └─ Integración con FaceLoginUI
+```
+
+---
+
+## Colores y Temas
+
+### Tema Azul (Por Defecto)
+```python
+"success": "#1f5b9f"     # Azul Marino
+"error": "#808080"       # Gris
+"checking": "#87ceeb"    # Azul Claro
+```
+
+### Tema Morado/Cian (Alternativo)
+```python
+"success": "#06b6d4"     # Cian
+"error": "#a855f7"       # Morado
+"checking": "#60a5fa"    # Azul Claro
+```
+
+### Tema Naranja/Gris (Profesional)
+```python
+"success": "#f76707"     # Naranja
+"error": "#6e7781"       # Gris
+"checking": "#ffa657"    # Naranja Claro
+```
+
+---
+
+## Manejo de Errores
+
+```
+Try/Except en cada validación:
+
+    try:
+        # Validación específica
+        import cv2
+        cap = cv2.VideoCapture(0)
+        if cap.isOpened():
+            cap.release()
+            result.status = SUCCESS
+    
+    except ImportError as e:
+        result.status = ERROR
+        result.error_details = "Módulo no instalado"
+    
+    except Exception as e:
+        result.status = ERROR
+        result.error_details = str(e)  ← Específico del error
+```
+
+---
+
+## Rendimiento
+
+### Tiempos Estimados
+```
+Validación                  Tiempo
+├─ Cada módulo              ~0.3s
+├─ Cámara                   ~0.3s
+├─ Pantalla                 ~0.3s
+├─ Servomotor               ~0.5s
+├─ Base de Datos            ~0.4s
+│
+└─ Total estimado:          ~3-5 segundos
+  (sin contar UI rendering y animations)
+```
+
+### Threading
+- ✓ UI nunca se bloquea
+- ✓ Animación continúa durante validaciones
+- ✓ Barra de progreso se actualiza suavemente
+- ✓ Usuario puede cerrar aplicación en cualquier momento
+
+---
+
+## Seguridad
+
+```
+✓ Sin inyección SQL
+  └─ SQLite sin queries dinámicas
+  └─ Solo se verifica conexión
+
+✓ Sin imports peligrosos
+  └─ Solo importa módulos por nombre
+  └─ Try/except alrededor de cada import
+
+✓ Sin ejecución de código arbitrario
+  └─ No usa eval() ni exec()
+  └─ Todas las rutas de código conocidas
+
+✓ Sin acceso de archivos peligrosos
+  └─ Solo crea en database/sqlite/
+  └─ Con permisos mínimos necesarios
+```
+
+---
+
+## Escalabilidad
+
+### Agregar Nueva Validación
+```
+Complejidad: O(1)
+
+Pasos:
+1. Crear método validate_nuevo()
+2. Agregar a run_all_checks()
+3. Método automáticamente se integra en UI
+4. Threading se maneja automáticamente
+5. Callbacks se procesan correctamente
+```
+
+### Agregar Nueva Categoría
+```
+Las categorías son dinámicas.
+Simplemente crear nuevo CheckResult con:
+    category="Nueva Categoría"
+    
+Se agrupan automáticamente en la UI
+```
+
+---
+
+## Diagrama de Clases (UML Simplificado)
+
+```
+┌─────────────────────┐
+│   CheckStatus       │ ◄─────┐
+│  (Enum)             │       │
+│ • PENDING           │       │
+│ • CHECKING          │       │
+│ • SUCCESS           │       │
+│ • ERROR             │       │
+└─────────────────────┘       │
+                              │
+┌─────────────────────┐       │
+│   CheckResult       │───────┤
+│  (Dataclass)        │       │
+│ • name              │       │
+│ • category          │       │ Usa
+│ • status ───────────┼───────┘
+│ • message           │
+│ • error_details     │
+└─────────────────────┘
+
+┌──────────────────────┐
+│  SystemValidator     │
+├──────────────────────┤
+│ - callback()         │
+│ - results[]          │
+├──────────────────────┤
+│ validate_*(method)   │ Retorna
+│ run_all_checks()     │ CheckResult[]
+└──────────┬───────────┘
+
+       Crea
+       │
+       ↓
+
+┌──────────────────────┐
+│ SystemCheckUI(tk.Tk) │
+├──────────────────────┤
+│ - colors             │
+│ - validator          │
+│ - check_items{}      │
+├──────────────────────┤
+│ _create_widgets()    │
+│ _start_validation()  │
+│ _on_check_result()   │
+│ _on_validation_()    │
+│ _on_continue()       │
+└──────────┬───────────┘
+
+       Contiene
+       │
+       ├──► LoadingCircle(Canvas)
+       ├──► CheckItemWidget(Frame)[]
+       ├──► ProgressBar
+       └──► Buttons
+```
+
+---
+
+## Summary
+
+Esta arquitectura proporciona:
+
+✅ **Separación de Responsabilidades**
+- Validaciones en SystemValidator
+- UI en SystemCheckUI
+- Widgets especializados
+
+✅ **Thread-Safety**
+- Callbacks seguros
+- Actualizaciones UI con `.after()`
+
+✅ **Extensibilidad**
+- Fácil agregar validaciones
+- Personalización de colores
+- Soporta múltiples temas
+
+✅ **Mantenibilidad**
+- Código modular y limpio
+- Comentarios completos
+- Estructura intuitiva
+
+✅ **Performance**
+- Validaciones rápidas (~5s)
+- UI nunca se bloquea
+- Animaciones suaves
+>>>>>>> 2e2d95e (UI de la cargainicial de dependencias test_setup.py)

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🚀 GUÍA RÁPIDA DE INICIO
 
 ## Instalación Rápida
@@ -191,10 +192,145 @@ python test_setup.py
 ```bash
 source venv/bin/activate
 python test_integration.py
+=======
+# ⚡ QUICK START - Inicio Rápido en 5 Minutos
+
+## 1️⃣ VERIFICACIÓN PREVIA (1 minuto)
+
+```bash
+python verificar_sistema.py
+```
+
+**Qué verás:**
+- ✓ Python version
+- ✓ Módulos instalados
+- ✓ Archivos presentes
+- ✓ Estado del sistema
+
+**Si hay error:**
+```bash
+pip install opencv-python numpy dlib pillow face_recognition
 ```
 
 ---
 
+## 2️⃣ EJECUTAR VERIFICACIÓN (2 minutos)
+
+```bash
+python test_setup.py
+```
+
+**Qué pasa:**
+1. Se abre interfaz gráfica
+2. Círculo rota suavemente
+3. Validaciones comienzan automáticamente
+4. Barra de progreso se actualiza
+5. En ~5 segundos termina
+
+---
+
+## 3️⃣ RESULTADOS
+
+### ✅ Si todo está OK
+```
+Verás: "✓ Sistema listo"
+Botón: "Continuar a Interfaz Principal" (azul)
+Acción: Haz click → Se abre FaceLoginUI
+```
+
+### ❌ Si hay errores
+```
+Verás: "✗ N error(es)"
+Lista: De componentes que fallaron
+Botón: "Reintentar" (gris)
+Acción: Soluciona y haz click → Reinicia
+```
+
+---
+
+## 4️⃣ PROBLEMAS COMUNES
+
+### "No se abre interfaz"
+```
+→ Asegúrate de tener display gráfico
+→ En servidor: es normal, las validaciones funcionan
+```
+
+### "Módulo no encontrado"
+```
+→ pip install [módulo]
+→ Luego ejecuta nuevamente: python test_setup.py
+```
+
+### "Cámara no detectada"
+```
+→ Verificar conexión física
+→ Probar: python -c "import cv2; cv2.VideoCapture(0).isOpened()"
+```
+
+### "Permiso denegado en BD"
+```
+→ chmod 755 database/
+→ chmod 755 database/sqlite/
+```
+
+---
+
+## 5️⃣ ARCHIVOS IMPORTANTES
+
+| Archivo | Uso |
+|---------|-----|
+| `test_setup.py` | Principal - Ejecutar |
+| `verificar_sistema.py` | Pre-verificación |
+| `README_SYSTEM_CHECK.md` | Documentación |
+| `INDICE_DOCUMENTACION.md` | Índice |
+
+---
+
+## 📋 CHECKLIST ANTES DE EMPEZAR
+
+- [ ] Python 3.7+ instalado
+- [ ] Ejecuté `python verificar_sistema.py` sin errores
+- [ ] Tengo acceso a display gráfico (opcional)
+- [ ] Los módulos Python están instalados
+
+---
+
+## 🎯 TRES OPCIONES DE USO
+
+### Opción 1: Usuario Final
+```bash
+# Simplemente ejecuta:
+python test_setup.py
+
+# Sigue las instrucciones en pantalla
+# ¡Listo!
+```
+
+### Opción 2: Desarrollador
+```bash
+# Pre-verificar:
+python verificar_sistema.py
+
+# Ejecutar verificación:
+python test_setup.py
+
+# Leer documentación:
+less README_SYSTEM_CHECK.md
+```
+
+### Opción 3: Sin Verificación
+```bash
+# Saltar la verificación:
+python system_check_integration_example.py --skip-check
+
+# Se abre FaceLoginUI directamente
+>>>>>>> 2e2d95e (UI de la cargainicial de dependencias test_setup.py)
+```
+
+---
+
+<<<<<<< HEAD
 ## 📝 Notas Importantes
 
 1. **Primer uso**: Registra al menos un usuario antes de intentar login
@@ -238,10 +374,67 @@ self.user_data = {
 Busca todas las instancias de `640, 480` y cambia:
 ```python
 frame = cv2.resize(frame, (NEW_WIDTH, NEW_HEIGHT))
+=======
+## 🔧 PERSONALIZACIÓN RÁPIDA
+
+### Cambiar Colores
+```python
+# En test_setup.py, línea ~_configure_styles():
+self.colors["success"] = "#tu_color"
+```
+
+Ver: `EJEMPLOS_PERSONALIZACION.py` - Ejemplo 2
+
+### Agregar Validación
+```python
+# En test_setup.py, agregar método:
+def validate_mi_componente(self):
+    # Tu código...
+    pass
+
+# En run_all_checks(), agregar:
+all_results.append(self.validate_mi_componente())
+```
+
+Ver: `EJEMPLOS_PERSONALIZACION.py` - Ejemplo 1
+
+---
+
+## 📚 DOCUMENTACIÓN RÁPIDA
+
+| Necesito... | Tiempo | Archivo |
+|-------------|--------|---------|
+| Empezar ahora | 2 min | Ejecutar script |
+| Entender qué hace | 5 min | README_SYSTEM_CHECK.md |
+| Ver cómo funciona | 20 min | ARQUITECTURA.md |
+| Personalizar | 10 min | EJEMPLOS_PERSONALIZACION.py |
+| Resolver problemas | 5 min | README_SYSTEM_CHECK.md |
+
+---
+
+## 🚀 FLUJO TÍPICO
+
+```
+1. Ejecuta:
+   python test_setup.py
+
+2. Espera:
+   ~5 segundos
+
+3. Resultado:
+   ✓ OK → Continúa
+   ✗ Error → Reintentar
+
+4. Final:
+   → Abre FaceLoginUI
+      O
+      → Soluciona y reinicia
+>>>>>>> 2e2d95e (UI de la cargainicial de dependencias test_setup.py)
 ```
 
 ---
 
+<<<<<<< HEAD
 ## 📞 Soporte
 
 Para problemas específicos:
@@ -255,3 +448,78 @@ Para problemas específicos:
 **Última actualización**: 15 de Abril de 2026  
 **Estado**: ✅ Producción
 
+=======
+## 🔗 INTEGRACIÓN SIMPLE
+
+Si tienes `login_ui.py` con clase `FaceLoginUI`:
+
+```python
+# En test_setup.py (línea ~560):
+from login_ui import FaceLoginUI
+app = FaceLoginUI()
+app.mainloop()
+```
+
+Se abre automáticamente si todo está OK.
+
+---
+
+## ⏱️ TIEMPOS
+
+```
+Verificación previa:    ~2 segundos
+Validaciones:           ~3-5 segundos
+Apertura UI:            ~1 segundo
+───────────────────────────────────
+Total:                  ~5-10 segundos
+```
+
+---
+
+## 📞 PREGUNTAS FRECUENTES
+
+**¿Por dónde empiezo?**
+→ Ejecuta: `python test_setup.py`
+
+**¿Cómo personalizo?**
+→ Ver: `EJEMPLOS_PERSONALIZACION.py`
+
+**¿Cómo integro mi código?**
+→ Ver: `system_check_integration_example.py`
+
+**¿Qué pasa si hay error?**
+→ Lee: `README_SYSTEM_CHECK.md` (Solución de Problemas)
+
+**¿Dónde está la documentación?**
+→ Ver: `INDICE_DOCUMENTACION.md`
+
+---
+
+## 🎯 PRÓXIMO PASO
+
+```bash
+python test_setup.py
+```
+
+¡Eso es todo! El sistema se verificará automáticamente. ✨
+
+---
+
+## 💾 GUARDAR ESTA GUÍA
+
+Guarda este archivo para referencia rápida. Puedes imprimirlo o
+guardarlo como favorito.
+
+**Archivos principales:**
+- `test_setup.py` ← Ejecuta esto
+- `verificar_sistema.py` ← Verifica primero
+- `INDICE_DOCUMENTACION.md` ← Más información
+
+---
+
+**Versión**: 1.0.0
+**Última actualización**: Abril 2026
+**Estado**: ✓ Listo
+
+¡Éxito! 🚀
+>>>>>>> 2e2d95e (UI de la cargainicial de dependencias test_setup.py)
