@@ -501,7 +501,3 @@ class FaceLoginUI:
     def run(self):
         """Inicia la aplicación"""
         self.root.mainloop()
-<<<<<<< HEAD
-=======
-
->>>>>>> 2e2d95e (UI de la cargainicial de dependencias test_setup.py)
