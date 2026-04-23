@@ -109,6 +109,19 @@ def migrate_local_schema(conn: sqlite3.Connection) -> None:
     conn.execute("INSERT OR IGNORE INTO grados (clave, nombre) VALUES ('3', 'TERCERO')")
     conn.execute("INSERT OR IGNORE INTO turnos (clave, nombre) VALUES ('MATUTINO', 'MATUTINO')")
     conn.execute("INSERT OR IGNORE INTO turnos (clave, nombre) VALUES ('VESPERTINO', 'VESPERTINO')")
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS personal_administrativo (
+            id_personal INTEGER PRIMARY KEY AUTOINCREMENT,
+            num_empleado TEXT NOT NULL UNIQUE,
+            nombre_completo TEXT NOT NULL,
+            rol TEXT NOT NULL,
+            correo TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            estado_activo INTEGER NOT NULL DEFAULT 1 CHECK (estado_activo IN (0, 1))
+        )
+        """
+    )
 
     grupos_info = conn.execute("PRAGMA table_info(grupos)").fetchall()
     grupos_columns = {row[1] for row in grupos_info}
