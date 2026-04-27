@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import cv2
 import face_recognition
 import pickle
@@ -122,7 +121,6 @@ def login():
         cv2.ellipse(frame, centro, ejes, 0, 0, 360, color_oval, 2)
         cv2.rectangle(frame, (0, 0), (ancho, 40), (0,0,0), -1)
         cv2.putText(frame, mensaje, (20, 30), cv2.FONT_HERSHEY_DUPLEX, 0.8, color_oval, 2)
-=======
 # ═══════════════════════════════════════════════════════════════════════════════
 # SERVICIO DE AUTENTICACIÓN FACIAL
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -242,9 +240,7 @@ class FaceLoginService:
         except Exception as e:
             print(f"Error detectando rostro: {e}")
             return [], []
-
->>>>>>> 2e2d95e (UI de la cargainicial de dependencias test_setup.py)
-
+        
 # ═══════════════════════════════════════════════════════════════════════════════
 # IMPORTACIÓN DE UI Y PUNTO DE ENTRADA
 # ═══════════════════════════════════════════════════════════════════════════════

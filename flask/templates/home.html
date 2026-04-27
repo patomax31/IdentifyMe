@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Identifyme | Inicio{% endblock %}
+{% block content %}
+<section class="hero card reveal">
+  <p class="kicker">VerifyMe</p>
+  <h1>Sistema de acceso facial</h1>
+  <p class="muted">Replica web moderna del flujo actual: iniciar sesion facial y registrar biometria en la misma base de datos.</p>
+</section>
+
+<section class="grid-two">
+  <article class="card reveal delay-1">
+    <h2>Iniciar sesion</h2>
+    <p>Valida acceso con reconocimiento facial, mensajes de estado y datos del usuario detectado.</p>
+    <a class="btn btn-primary" href="{{ url_for('login_page') }}">Abrir login facial</a>
+  </article>
+
+  <article class="card reveal delay-2">
+    <h2>Registrar usuario</h2>
+    <p>Captura rostro desde webcam y guarda datos de estudiante con grado, grupo y turno.</p>
+    <a class="btn btn-secondary" href="{{ url_for('register_page') }}">Abrir registro biometrico</a>
+  </article>
+</section>
+{% endblock %}
