@@ -133,8 +133,8 @@ def login():
             
             boxes = face_recognition.face_locations(rgb_small)
             encodings = face_recognition.face_encodings(rgb_small, boxes)
-             (usando tolerance de config)
-                    matches = face_recognition.compare_faces(rostros_db, face_encoding, tolerance=tolerance
+            
+            if len(boxes) > 0 and len(encodings) > 0:
                 for i, face_encoding in enumerate(encodings):
                     top, right, bottom, left = boxes[i]
                     top, right, bottom, left = top*4, right*4, bottom*4, left*4
@@ -182,7 +182,8 @@ def login():
         
         elif estado_actual == "detectado":
             if tiempo_en_estado > 1.2:  # Espera suave
-                estadof"ESCANEANDO - NO MOVERSE ({scanning_time_seconds:.0f}s)"
+                estado_actual = "escaneando"
+                tiempo_cambio_estado = time.time()
             color_mensaje = (0, 255, 255)
             color_cuadro = (0, 255, 255)
             
@@ -196,7 +197,7 @@ def login():
         
         elif estado_actual == "escaneando":
             mensaje = "ESCANEANDO - NO MOVERSE"
-            color_mensaje = (0, 25state_display_seconds255)
+            color_mensaje = (0, 255, 255)
             color_cuadro = (0, 255, 255)
         
         elif estado_actual == "verificado":
@@ -214,7 +215,7 @@ def login():
                 tiempo_cambio_estado = time.time()
                 consecutive_confirmed = 0
             mensaje = "ROSTRO NO RECONOCIDO - R: REINTENTAR"
-            color_mensaje = (0, 0, 255)line_thickness
+            color_mensaje = (0, 0, 255)
             color_cuadro = (0, 0, 255)
         
         # 📦 DIBUJAR CUADROS SIN PARPADEO
