@@ -13,8 +13,8 @@ class FakeRepo:
     def initialize(self):
         self.initialized = True
 
-    def create_student(self, grado, letra, turno):
-        self.created.append((grado, letra, turno))
+    def create_student(self, nombre, grado, letra, turno):
+        self.created.append((nombre, grado, letra, turno))
         student_id = self.next_id
         self.next_id += 1
         return student_id
@@ -37,10 +37,10 @@ class RegistrationServiceTests(unittest.TestCase):
         service = RegistrationService(repo)
         encoding = [0.1, 0.2, 0.3]
 
-        student_id = service.register_student_with_encoding(2, "B", "VESPERTINO", encoding)
+        student_id = service.register_student_with_encoding("Juan Perez", 2, "B", "VESPERTINO", encoding)
 
         self.assertEqual(1, student_id)
-        self.assertEqual([(2, "B", "VESPERTINO")], repo.created)
+        self.assertEqual([("Juan Perez", 2, "B", "VESPERTINO")], repo.created)
         self.assertEqual([(1, encoding)], repo.saved)
 
 

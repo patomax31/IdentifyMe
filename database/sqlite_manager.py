@@ -13,6 +13,7 @@ from database.sqlite.students import (
     save_student_biometric,
 )
 from database.sqlite.access import log_access
+from database.sqlite.reporting import list_access_logs, list_failed_attempts, list_students
 
 __all__ = [
     "BASE_DIR",
@@ -24,4 +25,7 @@ __all__ = [
     "load_student_biometrics",
     "log_access",
     "migrate_pickle_biometrics",
+    "list_students",
+    "list_access_logs",
+    "list_failed_attempts",
 ]

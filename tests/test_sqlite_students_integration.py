@@ -33,14 +33,14 @@ class SQLiteStudentsIntegrationTests(unittest.TestCase):
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_create_and_load_student_biometrics(self):
-        student_id = create_student(1, "A", "MATUTINO")
+        student_id = create_student("Juan Perez", 1, "A", "MATUTINO")
         encoding = np.array([0.1, 0.2, 0.3], dtype=float)
         save_student_biometric(student_id, encoding)
 
         encodings, labels, ids = load_student_biometrics()
 
         self.assertEqual([student_id], ids)
-        self.assertEqual([f"1A-MATUTINO #{student_id}"], labels)
+        self.assertEqual([f"Juan Perez (1A-MATUTINO) #{student_id}"], labels)
         self.assertEqual(1, len(encodings))
         self.assertTrue(np.allclose(encoding, encodings[0]))
 
