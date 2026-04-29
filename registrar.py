@@ -288,6 +288,20 @@ def _registrar_personal(recognition_settings, state_callback: Optional[Callable[
     _notify(state_callback, message)
 
 
+class FaceRegisterUI:
+    """Compatibilidad con integraciones antiguas que esperan una clase de UI.
+
+    El flujo real de registro vive en `registrar_usuario()`. Esta clase solo
+    conserva la API histórica para scripts de integración y arranque.
+    """
+
+    def __init__(self, parent=None):
+        self.parent = parent
+
+    def run(self):
+        registrar_usuario()
+
+
 def registrar_usuario(state_callback: Optional[Callable[[str], None]] = None):
     _notify(state_callback, "Inicializando registro biometrico...")
     recognition_settings = get_recognition_settings()

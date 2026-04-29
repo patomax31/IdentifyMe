@@ -2,17 +2,6 @@
 
 Este documento define la siguiente fase para terminar la adopcion de arquitectura modular sin romper el comportamiento actual.
 
-## Estado
-
-Fecha de cierre: 2026-04-15
-
-Estado general: COMPLETADO.
-
-Validaciones de cierre realizadas:
-- Compilacion sin errores.
-- Suite de pruebas automatizadas en verde.
-- Prueba manual de flujos reales: `python registrar.py` y `python login.py` funcionando correctamente.
-
 ## 1. Extraer casos de uso (application)
 
 Objetivo: mover reglas de flujo que aun viven en scripts de entrada.

@@ -1,6 +1,6 @@
-# Face Recognition Biometric Login
+# IdentifyMe
 
-Sistema biométrico facial embebido para la identificación y verificación de usuarios a partir de imágenes faciales capturadas por una cámara digital.
+IdentifyMe es un sistema de control de acceso mediante datos biométricos faciales en una Raspberry Pi 5
 
 ## 📌 Estructura del proyecto
 
@@ -248,6 +248,14 @@ Opciones de salida:
 - Usa buena iluminación para mejorar la detección facial.
 - Asegúrate de que solo haya un rostro en el cuadro al capturar el encoding.
 - Si tienes problemas con la cámara, prueba con otro dispositivo o controla que no esté siendo utilizada por otra aplicación.
+<<<<<<< HEAD
+- Si tienes más de una cámara, puedes seleccionar índice con variable de entorno: `set CAMERA_INDEX=1` (Windows CMD) o `$env:CAMERA_INDEX=1` (PowerShell).
+- Perfil de cámara dual con `CAMERA_PROFILE`:
+	- `WINDOWS_STABLE` para desarrollo en Windows (DirectShow).
+	- `RASPBERRY_PI` para despliegue en Linux/Raspberry Pi (V4L2).
+	- `AUTO` (valor por defecto) detecta por sistema operativo.
+- Variables opcionales de rendimiento: `CAMERA_WIDTH`, `CAMERA_HEIGHT`, `CAMERA_FPS`.
+=======
 
 ### Troubleshooting rápido (Windows)
 
@@ -262,3 +270,4 @@ Opciones de salida:
 ```powershell
 .\.venv\Scripts\python.exe -m pip install "setuptools<81"
 ```
+>>>>>>> 8461d2d623db31dab5f72fded4d377749a53703e

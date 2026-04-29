@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Identifyme | Registro{% endblock %}
+{% block content %}
+<section class="topbar reveal">
+  <a class="link-back" href="{{ url_for('home') }}">Volver al inicio</a>
+  <h1>Registro biometrico</h1>
+</section>
+
+<section class="grid-main register-grid">
+  <article class="card reveal delay-1">
+    <form id="registerForm" class="form-grid">
+      <label>Nombre
+        <input type="text" id="nombre" required maxlength="80" placeholder="Ej. Carlos Perez">
+      </label>
+      <label>Grado
+        <select id="grado" required>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </label>
+      <label>Letra
+        <input type="text" id="letra" required maxlength="1" pattern="[A-Za-z]" placeholder="A">
+      </label>
+      <label>Turno
+        <select id="turno" required>
+          <option value="MATUTINO">MATUTINO</option>
+          <option value="VESPERTINO">VESPERTINO</option>
+        </select>
+      </label>
+    </form>
+
+    <div class="camera-wrap compact">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="captureCanvas" class="hidden"></canvas>
+      <div class="overlay"><span id="registerBadge">LISTO PARA CAPTURAR</span></div>
+    </div>
+
+    <div class="actions">
+      <button id="startBtn" class="btn btn-primary">Iniciar camara</button>
+      <button id="captureBtn" class="btn btn-secondary" disabled>Capturar y registrar</button>
+      <button id="stopBtn" class="btn btn-danger" disabled>Detener</button>
+    </div>
+    <p id="registerStatus" class="status waiting">Completa datos y captura tu rostro.</p>
+  </article>
+</section>
+<script src="{{ url_for('static', filename='js/register.js') }}"></script>
+{% endblock %}
