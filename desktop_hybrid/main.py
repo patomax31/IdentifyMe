@@ -13,7 +13,7 @@ import webview
 from webview.errors import WebViewException
 from werkzeug.serving import make_server
 
-from flask_server import create_app
+from flask_server import _admin_panel_dist_ready, create_app
 
 
 HOST = "127.0.0.1"
@@ -94,11 +94,14 @@ def run_desktop_app() -> int:
         stop_server(state)
         return 1
 
+    target_path = "/admin-panel/" if _admin_panel_dist_ready() else "/"
+
     webview.create_window(
         title="IdentifyMe",
-        url=f"http://{HOST}:{PORT}/",
-        width=900,
-        height=600,
+        url=f"http://{HOST}:{PORT}{target_path}",
+        width=600,
+        height=1024,
+        resizable=False,
     )
 
     try:
