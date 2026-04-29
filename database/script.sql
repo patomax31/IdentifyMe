@@ -43,6 +43,22 @@ CREATE TABLE estudiantes (
     FOREIGN KEY (id_turno) REFERENCES turnos(id_turno) ON DELETE RESTRICT
 );
 
+CREATE TRIGGER trg_estudiantes_bloquear_duplicados
+BEFORE INSERT ON estudiantes
+BEGIN
+    SELECT CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM estudiantes e
+            WHERE UPPER(TRIM(e.nombre)) = UPPER(TRIM(NEW.nombre))
+              AND e.id_grado = NEW.id_grado
+              AND e.id_grupo = NEW.id_grupo
+              AND e.id_turno = NEW.id_turno
+        )
+        THEN RAISE(ABORT, 'El estudiante ya existe en la base de datos.')
+    END;
+END;
+
 CREATE TABLE personal_administrativo (
     id_personal INTEGER PRIMARY KEY AUTOINCREMENT,
     num_empleado TEXT NOT NULL UNIQUE,

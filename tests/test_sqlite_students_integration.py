@@ -2,10 +2,12 @@ import os
 import shutil
 import tempfile
 import unittest
+import sqlite3
 
 import numpy as np
 
 from database.sqlite import connection, migrations
+from database.sqlite.connection import connect
 from database.sqlite.students import create_student, load_student_biometrics, save_student_biometric
 
 
@@ -43,6 +45,29 @@ class SQLiteStudentsIntegrationTests(unittest.TestCase):
         self.assertEqual([f"Juan Perez (1A-MATUTINO) #{student_id}"], labels)
         self.assertEqual(1, len(encodings))
         self.assertTrue(np.allclose(encoding, encodings[0]))
+
+    def test_create_student_rejects_duplicate_registration(self):
+        create_student("Juan Perez", 1, "A", "MATUTINO")
+
+        with self.assertRaises(ValueError) as context:
+            create_student("Juan Perez", 1, "A", "MATUTINO")
+
+        self.assertIn("ya existe", str(context.exception))
+
+    def test_student_duplicate_trigger_blocks_direct_insert(self):
+        create_student("Juan Perez", 1, "A", "MATUTINO")
+
+        with self.assertRaises(sqlite3.IntegrityError) as context:
+            with connect() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO estudiantes (nombre, id_grado, id_grupo, id_turno, estado_activo)
+                    VALUES (?, ?, ?, ?, 1)
+                    """,
+                    ("Juan Perez", 1, 1, 1),
+                )
+
+        self.assertIn("ya existe", str(context.exception))
 
 
 if __name__ == "__main__":
