@@ -2,6 +2,7 @@ const state = {
   view: "home",
   login: { stream: null, timer: null },
   register: { stream: null },
+  drawerOpen: false,
 };
 
 function $(id) {
@@ -12,12 +13,30 @@ function setSystemStatus(msg) {
   $("systemStatus").textContent = msg;
 }
 
+function setDrawer(open) {
+  state.drawerOpen = open;
+  $("sidebar").classList.toggle("open", open);
+  $("overlay").classList.toggle("hidden", !open);
+}
+
+function toggleDrawer() {
+  setDrawer(!state.drawerOpen);
+}
+
 function showView(name) {
   document.querySelectorAll(".view").forEach((el) => el.classList.add("hidden"));
   $(`view-${name}`).classList.remove("hidden");
   document.querySelectorAll(".nav-btn").forEach((btn) => btn.classList.remove("active"));
   document.querySelector(`.nav-btn[data-view='${name}']`).classList.add("active");
   state.view = name;
+
+  const statusMap = {
+    home: "Dashboard institucional listo.",
+    login: "Acceso facial activo.",
+    register: "Registro biometrico disponible.",
+    admin: "Panel administrativo listo.",
+  };
+  setSystemStatus(statusMap[name] || "VerifyMe listo.");
 }
 
 async function jsonFetch(url, options = {}) {
@@ -320,13 +339,26 @@ async function createAdmin() {
 }
 
 async function bootstrap() {
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+
   document.querySelectorAll(".nav-btn").forEach((btn) => {
-    btn.addEventListener("click", () => showView(btn.dataset.view));
+    btn.addEventListener("click", () => {
+      showView(btn.dataset.view);
+      if (window.matchMedia("(max-width: 720px)").matches) {
+        setDrawer(false);
+      }
+    });
   });
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => setAdminTab(btn.dataset.adminTab));
   });
+
+  $("hamburger").addEventListener("click", toggleDrawer);
+  $("closeDrawer").addEventListener("click", () => setDrawer(false));
+  $("overlay").addEventListener("click", () => setDrawer(false));
 
   $("loginStart").addEventListener("click", startLoginCamera);
   $("loginStop").addEventListener("click", stopLoginCamera);
@@ -349,6 +381,13 @@ async function bootstrap() {
     setSystemStatus(data.message);
   } catch (error) {
     setSystemStatus(error.message);
+  }
+
+  showView("home");
+  setDrawer(false);
+
+  if (window.lucide) {
+    window.lucide.createIcons();
   }
 
   await Promise.all([loadStudents(), loadModelConfig(), loadAdmins()]);

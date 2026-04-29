@@ -3,45 +3,64 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>IdentifyMe Desktop</title>
+  <title>VerifyMe</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
   <div class="bg-orb orb-1"></div>
   <div class="bg-orb orb-2"></div>
+  <div id="overlay" class="overlay hidden"></div>
 
   <main class="layout">
-    <aside class="sidebar card">
-      <h1>IdentifyMe</h1>
-      <p class="muted">Desktop Hybrid</p>
+    <aside id="sidebar" class="sidebar card">
+      <div class="sidebar-head">
+        <div>
+          <h1>VerifyMe</h1>
+          <p class="subtitle">Acceso biometrico escolar</p>
+        </div>
+        <button id="closeDrawer" class="icon-btn" aria-label="Cerrar menu">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
       <nav>
-        <button class="nav-btn active" data-view="home">Inicio</button>
-        <button class="nav-btn" data-view="login">Login facial</button>
-        <button class="nav-btn" data-view="register">Registro facial</button>
-        <button class="nav-btn" data-view="admin">Admin panel</button>
+        <button class="nav-btn active" data-view="home"><i data-lucide="house"></i><span>Inicio</span></button>
+        <button class="nav-btn" data-view="login"><i data-lucide="scan-face"></i><span>Acceso facial</span></button>
+        <button class="nav-btn" data-view="register"><i data-lucide="badge-plus"></i><span>Registro facial</span></button>
+        <button class="nav-btn" data-view="admin"><i data-lucide="settings-2"></i><span>Admin panel</span></button>
       </nav>
       <div class="status-box">
-        <p class="label">Sistema</p>
+        <p class="label">Estado del sistema</p>
         <p id="systemStatus">Consultando estado...</p>
       </div>
     </aside>
 
     <section class="content">
+      <header class="topbar card">
+        <button id="hamburger" class="icon-btn burger" aria-label="Abrir menu">
+          <i data-lucide="menu"></i>
+        </button>
+        <div>
+          <p class="eyebrow">IdentifyMe</p>
+          <p class="topbar-title">Sistema biometrico escolar</p>
+        </div>
+      </header>
+
       <section class="view card" id="view-home">
         <p class="eyebrow">Bienvenido</p>
         <h2>Panel principal</h2>
-        <p class="muted">Aplicacion de escritorio con Flask + PyWebview y logica de reconocimiento facial integrada.</p>
+        <p class="muted">Dashboard escolar moderno para acceso facial, registro biometrico y administracion institucional.</p>
       </section>
 
       <section class="view card hidden" id="view-login">
-        <h2>Login con reconocimiento facial</h2>
+        <h2>Acceso de reconocimiento facial</h2>
+        <p class="muted">Escanea el rostro del estudiante y valida el acceso en tiempo real.</p>
         <div class="camera-box">
           <video id="loginVideo" autoplay playsinline muted></video>
           <canvas id="loginCanvas" class="hidden"></canvas>
         </div>
         <div class="row">
-          <button id="loginStart">Iniciar camara</button>
-          <button id="loginStop" class="btn-danger" disabled>Detener</button>
+          <button id="loginStart"><i data-lucide="play"></i><span>Iniciar</span></button>
+          <button id="loginStop" class="btn-danger" disabled><i data-lucide="square"></i><span>Detener</span></button>
         </div>
         <p id="loginMessage" class="feedback">ESPERANDO ROSTRO...</p>
         <div class="grid-2 user-card">
@@ -54,6 +73,7 @@
 
       <section class="view card hidden" id="view-register">
         <h2>Registro biometrico</h2>
+        <p class="muted">Captura nuevos alumnos con sus datos escolares y su biometria facial.</p>
         <div class="grid-4 form-grid">
           <label>Nombre <input id="regNombre" type="text" maxlength="80" placeholder="Ej. Ana Gomez"></label>
           <label>Grado <select id="regGrado"><option>1</option><option>2</option><option>3</option></select></label>
@@ -65,20 +85,21 @@
           <canvas id="regCanvas" class="hidden"></canvas>
         </div>
         <div class="row">
-          <button id="regStart">Iniciar camara</button>
-          <button id="regCapture">Capturar y registrar</button>
-          <button id="regStop" class="btn-danger" disabled>Detener</button>
+          <button id="regStart"><i data-lucide="camera"></i><span>Iniciar</span></button>
+          <button id="regCapture"><i data-lucide="scan-face"></i><span>Capturar y registrar</span></button>
+          <button id="regStop" class="btn-danger" disabled><i data-lucide="square"></i><span>Detener</span></button>
         </div>
         <p id="regMessage" class="feedback">Completa datos y captura tu rostro.</p>
       </section>
 
       <section class="view card hidden" id="view-admin">
         <h2>Admin panel</h2>
+        <p class="muted">Gestion escolar, parametros del modelo y administradores del sistema.</p>
 
         <div class="tabs-inline">
-          <button class="tab-btn active" data-admin-tab="students">CRUD estudiantes</button>
-          <button class="tab-btn" data-admin-tab="model">Configuracion modelo</button>
-          <button class="tab-btn" data-admin-tab="admins">Registro administrador</button>
+          <button class="tab-btn active" data-admin-tab="students"><i data-lucide="users"></i><span>CRUD estudiantes</span></button>
+          <button class="tab-btn" data-admin-tab="model"><i data-lucide="sliders-horizontal"></i><span>Configuracion modelo</span></button>
+          <button class="tab-btn" data-admin-tab="admins"><i data-lucide="user-cog"></i><span>Registro administrador</span></button>
         </div>
 
         <section id="admin-students" class="admin-tab">
@@ -89,8 +110,8 @@
             <label>Turno <select id="admTurno"><option>MATUTINO</option><option>VESPERTINO</option></select></label>
           </div>
           <div class="row">
-            <button id="admCreate">Crear estudiante</button>
-            <button id="admRefresh">Refrescar lista</button>
+            <button id="admCreate"><i data-lucide="user-plus"></i><span>Crear estudiante</span></button>
+            <button id="admRefresh"><i data-lucide="refresh-cw"></i><span>Refrescar lista</span></button>
           </div>
           <p id="admStudentsMsg" class="feedback">Gestion de estudiantes.</p>
           <div class="table-wrap">
@@ -110,8 +131,8 @@
             <label>Cooldown (s) <input id="cfgCooldown" type="number" min="0" max="120" step="0.5"></label>
           </div>
           <div class="row">
-            <button id="cfgLoad">Cargar configuracion</button>
-            <button id="cfgSave">Guardar configuracion</button>
+            <button id="cfgLoad"><i data-lucide="download"></i><span>Cargar configuracion</span></button>
+            <button id="cfgSave"><i data-lucide="save"></i><span>Guardar configuracion</span></button>
           </div>
           <p id="cfgMsg" class="feedback">Configuracion del modelo.</p>
         </section>
@@ -125,8 +146,8 @@
             <label>Password <input id="adminPass" type="password"></label>
           </div>
           <div class="row">
-            <button id="adminCreate">Registrar administrador</button>
-            <button id="adminRefresh">Refrescar admins</button>
+            <button id="adminCreate"><i data-lucide="shield-plus"></i><span>Registrar administrador</span></button>
+            <button id="adminRefresh"><i data-lucide="refresh-cw"></i><span>Refrescar admins</span></button>
           </div>
           <p id="adminMsg" class="feedback">Registro de administradores.</p>
           <div class="table-wrap">
@@ -142,6 +163,7 @@
     </section>
   </main>
 
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

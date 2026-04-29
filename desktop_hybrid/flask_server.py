@@ -8,7 +8,7 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
 from werkzeug.security import generate_password_hash
 
 try:
@@ -22,6 +22,9 @@ except Exception:
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
+
+ADMIN_PANEL_DIR = PROJECT_DIR / "admin_panel"
+ADMIN_PANEL_DIST_DIR = ADMIN_PANEL_DIR / "dist"
 
 from database.sqlite.connection import connect
 from database.sqlite.migrations import initialize_database
@@ -88,6 +91,10 @@ def _resource_base() -> Path:
     if hasattr(sys, "_MEIPASS"):
         return Path(sys._MEIPASS)
     return Path(__file__).resolve().parent
+
+
+def _admin_panel_dist_ready() -> bool:
+    return (ADMIN_PANEL_DIST_DIR / "index.html").exists()
 
 
 def _runtime_check(engine_error: Optional[str], engine: Optional[WebFaceEngine]) -> Optional[str]:
@@ -246,6 +253,8 @@ def create_app() -> Flask:
         static_folder=str(static_dir),
     )
 
+    admin_panel_ready = _admin_panel_dist_ready()
+
     recognition_settings = get_recognition_settings()
     cfg = _load_model_settings(recognition_settings)
     recognition_settings.scale = cfg["scale"]
@@ -262,6 +271,31 @@ def create_app() -> Flask:
     @app.get("/")
     def index() -> str:
         return render_template("index.html")
+
+    @app.get("/admin-panel/")
+    @app.get("/admin-panel/<path:requested_path>")
+    def admin_panel(requested_path: str = ""):
+        if not admin_panel_ready:
+            return (
+                jsonify(
+                    {
+                        "ok": False,
+                        "message": "El build de admin_panel no esta disponible. Ejecuta npm run build dentro de admin_panel.",
+                    }
+                ),
+                404,
+            )
+
+        rel_path = requested_path.strip("/")
+        candidate = ADMIN_PANEL_DIST_DIR / rel_path if rel_path else ADMIN_PANEL_DIST_DIR / "index.html"
+
+        if rel_path and candidate.is_file():
+            return send_from_directory(ADMIN_PANEL_DIST_DIR, rel_path)
+
+        if rel_path and "." in Path(rel_path).name:
+            return jsonify({"ok": False, "message": "Asset no encontrado en admin_panel"}), 404
+
+        return send_from_directory(ADMIN_PANEL_DIST_DIR, "index.html")
 
     @app.get("/status")
     def status():
