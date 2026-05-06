@@ -17,6 +17,7 @@ def initialize_database() -> None:
             with open(SCHEMA_PATH, "r", encoding="utf-8") as schema_file:
                 conn.executescript(schema_file.read())
             ensure_reporting_views(conn)
+            ensure_student_duplicate_trigger(conn)
             return
 
         migrate_local_schema(conn)
@@ -85,6 +86,29 @@ def ensure_reporting_views(conn: sqlite3.Connection) -> None:
     )
 
 
+def ensure_student_duplicate_trigger(conn: sqlite3.Connection) -> None:
+    conn.execute("DROP TRIGGER IF EXISTS trg_estudiantes_bloquear_duplicados")
+    conn.execute(
+        """
+        CREATE TRIGGER trg_estudiantes_bloquear_duplicados
+        BEFORE INSERT ON estudiantes
+        BEGIN
+            SELECT CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM estudiantes e
+                    WHERE UPPER(TRIM(e.nombre)) = UPPER(TRIM(NEW.nombre))
+                      AND e.id_grado = NEW.id_grado
+                      AND e.id_grupo = NEW.id_grupo
+                      AND e.id_turno = NEW.id_turno
+                )
+                THEN RAISE(ABORT, 'El estudiante ya existe en la base de datos.')
+            END;
+        END;
+        """
+    )
+
+
 def migrate_local_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
@@ -109,6 +133,19 @@ def migrate_local_schema(conn: sqlite3.Connection) -> None:
     conn.execute("INSERT OR IGNORE INTO grados (clave, nombre) VALUES ('3', 'TERCERO')")
     conn.execute("INSERT OR IGNORE INTO turnos (clave, nombre) VALUES ('MATUTINO', 'MATUTINO')")
     conn.execute("INSERT OR IGNORE INTO turnos (clave, nombre) VALUES ('VESPERTINO', 'VESPERTINO')")
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS personal_administrativo (
+            id_personal INTEGER PRIMARY KEY AUTOINCREMENT,
+            num_empleado TEXT NOT NULL UNIQUE,
+            nombre_completo TEXT NOT NULL,
+            rol TEXT NOT NULL,
+            correo TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            estado_activo INTEGER NOT NULL DEFAULT 1 CHECK (estado_activo IN (0, 1))
+        )
+        """
+    )
 
     grupos_info = conn.execute("PRAGMA table_info(grupos)").fetchall()
     grupos_columns = {row[1] for row in grupos_info}
@@ -309,4 +346,5 @@ def migrate_local_schema(conn: sqlite3.Connection) -> None:
         ON estudiantes (id_grado, id_grupo, id_turno, estado_activo)
         """
     )
+    ensure_student_duplicate_trigger(conn)
     ensure_reporting_views(conn)

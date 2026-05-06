@@ -38,7 +38,14 @@ class RegistrationUseCase:
             )
 
         encoding = encodings[0]
-        student_id = self.registration_service.register_student_with_encoding(nombre, grado, letra, turno, encoding)
+        try:
+            student_id = self.registration_service.register_student_with_encoding(nombre, grado, letra, turno, encoding)
+        except ValueError as exc:
+            return RegistrationResult(
+                success=False,
+                message=str(exc),
+            )
+
         self.pkl_repository.save_student_biometric(student_id, encoding)
 
         return RegistrationResult(
