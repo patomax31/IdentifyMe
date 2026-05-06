@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Identifyme | Login{% endblock %}
+{% block content %}
+<section class="topbar reveal">
+  <a class="link-back" href="{{ url_for('home') }}">Volver al inicio</a>
+  <h1>Login con reconocimiento facial</h1>
+</section>
+
+<section class="grid-main">
+  <article class="card reveal delay-1">
+    <div class="camera-wrap">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="captureCanvas" class="hidden"></canvas>
+      <div class="overlay"><span id="statusBadge">ESPERANDO ROSTRO...</span></div>
+    </div>
+    <div class="actions">
+      <button id="startBtn" class="btn btn-primary">Iniciar camara</button>
+      <button id="stopBtn" class="btn btn-danger" disabled>Detener</button>
+    </div>
+    <p id="statusText" class="status waiting">ESPERANDO ROSTRO...</p>
+  </article>
+
+  <aside class="card reveal delay-2 user-panel">
+    <h2>Datos de usuario</h2>
+    <ul>
+      <li><strong>Nombre:</strong> <span id="userName">---</span></li>
+      <li><strong>Salon:</strong> <span id="userClass">---</span></li>
+      <li><strong>Edad:</strong> <span id="userAge">---</span></li>
+      <li><strong>ID:</strong> <span id="userId">---</span></li>
+    </ul>
+    <p class="muted" id="usersLoaded">Cargando usuarios...</p>
+  </aside>
+</section>
+<script src="{{ url_for('static', filename='js/login.js') }}"></script>
+{% endblock %}

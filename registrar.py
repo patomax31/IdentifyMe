@@ -1,8 +1,13 @@
+<<<<<<< HEAD
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading, cv2, os, pickle
 from PIL import Image, ImageTk
 import winsound
+=======
+import cv2
+from typing import Callable, Optional
+>>>>>>> 7b8e1a289254b37d3144b741d98017de8259c97a
 
 from src.application.registration_service import RegistrationService
 from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
@@ -35,6 +40,7 @@ FONT_HINT   = ("Trebuchet MS",  8)
 FONT_BADGE  = ("Consolas",     8,  "bold")
 
 
+<<<<<<< HEAD
 def registrar_usuario():
     service = RegistrationService(SQLiteRepository())
     service.initialize()
@@ -286,6 +292,19 @@ def registrar_usuario():
         bd=0, cursor="hand2", state="disabled",
         disabledforeground="#A5B4FC",
         command=None
+=======
+def _notify(state_callback: Optional[Callable[[str], None]], message: str) -> None:
+    if state_callback is not None:
+        state_callback(message)
+
+
+def registrar_usuario(state_callback: Optional[Callable[[str], None]] = None):
+    _notify(state_callback, "Inicializando registro biometrico...")
+    recognition_settings = get_recognition_settings()
+    use_case = RegistrationUseCase(
+        registration_service=RegistrationService(SQLiteRepository()),
+        pkl_repository=PklRepository(),
+>>>>>>> 7b8e1a289254b37d3144b741d98017de8259c97a
     )
     btn_reg.pack(fill="both", expand=True)
     btn_reg.bind("<Enter>", lambda e: btn_reg.config(bg=ACC_HOV)
@@ -298,6 +317,7 @@ def registrar_usuario():
              font=("Trebuchet MS", 7, "bold"),
              fg=TXT_MUTE, bg=BG).place(x=0, y=796, width=480)
 
+<<<<<<< HEAD
     # ══════════════════════════════════════════════════════════
     #  LOOP DE CÁMARA
     # ══════════════════════════════════════════════════════════
@@ -305,6 +325,19 @@ def registrar_usuario():
         if not running['ok']:
             return
 
+=======
+    if cap is None:
+        message = "No se pudo acceder a la camara. Cierra otras apps que la usen e intenta de nuevo."
+        print(message)
+        _notify(state_callback, message)
+        return
+
+    start_message = f"Registrando a {nombre} en {grado}{letra}-{turno}. Presiona 'S' para capturar o 'Q' para salir."
+    print(start_message)
+    _notify(state_callback, start_message)
+
+    while True:
+>>>>>>> 7b8e1a289254b37d3144b741d98017de8259c97a
         ret, frame = cap.read()
         if ret:
             latest['frame'] = frame.copy()
@@ -341,6 +374,7 @@ def registrar_usuario():
                     if not face_data['captured']:
                         face_data['countdown'] += 1
 
+<<<<<<< HEAD
             # ─ Cuenta regresiva y captura automática ─
             if face_data['countdown'] > 0 and not face_data['captured']:
                 count = 3 - (face_data['countdown'] // 10)
@@ -369,6 +403,15 @@ def registrar_usuario():
             cv2.rectangle(overlay, (0, 0), (w, h), (240, 244, 255), -1)
             cv2.ellipse(overlay, (cx, cy), (ex, ey), 0, 0, 360, (240, 244, 255), -1)
             cv2.addWeighted(overlay, 0.28, rgb, 0.72, 0, rgb)
+=======
+            if result.success:
+                print(result.message)
+                _notify(state_callback, result.message)
+                break
+
+            print(result.message)
+            _notify(state_callback, result.message)
+>>>>>>> 7b8e1a289254b37d3144b741d98017de8259c97a
 
             # Óvalo principal
             cv2.ellipse(rgb, (cx, cy), (ex, ey), 0, 0, 360, oval_color, 3)
@@ -376,9 +419,15 @@ def registrar_usuario():
             for a in [0, 90, 180, 270]:
                 cv2.ellipse(rgb, (cx, cy), (ex, ey), 0, a-15, a+15, oval_color, 5)
 
+<<<<<<< HEAD
             # Actualizar hint de cámara
             cam_hint_lbl.config(text=hint_txt, fg=hint_fg, bg=hint_bg)
             cam_bar.config(bg=hint_bg)
+=======
+    cap.release()
+    cv2.destroyAllWindows()
+    _notify(state_callback, "Registro biometrico finalizado.")
+>>>>>>> 7b8e1a289254b37d3144b741d98017de8259c97a
 
             img   = Image.fromarray(rgb).resize((438, 230))
             imgtk = ImageTk.PhotoImage(img)

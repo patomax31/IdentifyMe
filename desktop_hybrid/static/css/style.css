@@ -1,0 +1,231 @@
+:root {
+  --bg: #070f1a;
+  --bg-soft: #131f34;
+  --card: rgba(20, 31, 52, 0.88);
+  --line: rgba(144, 186, 255, 0.25);
+  --text: #eaf1ff;
+  --muted: #9eb5de;
+  --primary: #73b7ff;
+  --primary-2: #8ff0cf;
+  --danger: #ff6b81;
+  --ok: #67db8f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Segoe UI", "Sora", sans-serif;
+  color: var(--text);
+  background: linear-gradient(145deg, #070f1a, #0b1422);
+}
+
+.bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.24;
+  z-index: 0;
+}
+
+.orb-1 { width: 380px; height: 380px; background: #4f8dff; top: -80px; left: -90px; }
+.orb-2 { width: 420px; height: 420px; background: #53d9b1; right: -120px; top: 45%; }
+
+.layout {
+  position: relative;
+  z-index: 1;
+  width: min(1280px, 96vw);
+  margin: 18px auto;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: 0 20px 45px rgba(2, 8, 19, 0.45);
+  backdrop-filter: blur(8px);
+}
+
+.sidebar {
+  padding: 18px;
+  min-height: calc(100vh - 36px);
+}
+
+.sidebar h1 { margin: 0 0 4px; }
+
+.muted { color: var(--muted); }
+.label { color: var(--muted); font-size: 0.82rem; margin: 0 0 6px; }
+
+.sidebar nav { display: grid; gap: 8px; margin: 18px 0; }
+
+.nav-btn,
+.tab-btn,
+button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #00162f;
+  background: linear-gradient(120deg, var(--primary), var(--primary-2));
+}
+
+.nav-btn { text-align: left; }
+
+.nav-btn.active,
+.tab-btn.active {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+.status-box {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--bg-soft);
+}
+
+.content {
+  display: grid;
+}
+
+.view {
+  padding: 20px;
+  min-height: calc(100vh - 36px);
+}
+
+.hidden { display: none !important; }
+
+.eyebrow {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.74rem;
+  color: var(--primary-2);
+}
+
+h2 { margin: 0 0 12px; }
+
+.camera-box {
+  margin-top: 10px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid rgba(144, 186, 255, 0.4);
+  background: #02070e;
+}
+
+.camera-box.compact { max-width: 860px; }
+
+video {
+  width: 100%;
+  display: block;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.row {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.btn-danger { background: linear-gradient(120deg, #ff748c, #d74863); color: #fff; }
+
+.feedback {
+  margin: 12px 0;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.user-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--bg-soft);
+}
+
+.grid-2,
+.grid-3,
+.grid-4 {
+  display: grid;
+  gap: 10px;
+}
+
+.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+input,
+select {
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #0e1828;
+  color: var(--text);
+  padding: 9px;
+}
+
+.tabs-inline {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.admin-tab { margin-top: 6px; }
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #101c30;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 1px solid rgba(144, 186, 255, 0.18);
+  font-size: 0.86rem;
+}
+
+small.action-link {
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+small.action-link.danger {
+  color: var(--danger);
+}
+
+@media (max-width: 1080px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar,
+  .view { min-height: auto; }
+  .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .grid-4,
+  .grid-3,
+  .grid-2 { grid-template-columns: 1fr; }
+}

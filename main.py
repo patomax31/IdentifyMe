@@ -1,8 +1,6 @@
 import tkinter as tk
-import threading
-from login import login
-from registrar import registrar_usuario
 
+<<<<<<< HEAD
 # =========================
 # PALETA ALTA VISIBILIDAD
 # (optimizada para luz solar directa)
@@ -152,3 +150,17 @@ tk.Label(
 ).pack(side="bottom", pady=14)
 
 ventana.mainloop()
+=======
+from state_manager import StateManager
+
+
+def main() -> None:
+    root = tk.Tk()
+    app = StateManager(root)
+    app.start()
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
+>>>>>>> 7b8e1a289254b37d3144b741d98017de8259c97a
