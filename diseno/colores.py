@@ -1,0 +1,17 @@
+BG       = "#EEF2FF"
+CARD     = "#FFFFFF"
+SIDEBAR  = "#F8FAFF"
+ACC      = "#4338CA"
+ACC2     = "#7C3AED"
+ACC_HOV  = "#3730A3"
+ACC_LITE = "#E0E7FF"
+BORDER   = "#A5B4FC"
+SEP      = "#C7D2FE"
+
+SUCCESS  = "#065F46";  SUCCESS_BG = "#D1FAE5"
+ERROR    = "#991B1B";  ERROR_BG   = "#FEE2E2"
+INFO     = "#1D4ED8";  INFO_BG    = "#DBEAFE"
+
+TXT      = "#1E1B4B"
+TXT_LBL  = "#3730A3"
+TXT_MUTE = "#4338CA"
