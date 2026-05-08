@@ -70,13 +70,33 @@ def create_student(nombre: str, grado: int, letra: str, turno: str) -> int:
         id_grado = ensure_grade(conn, grado)
         id_grupo = ensure_group(conn, letra)
         id_turno = ensure_shift(conn, turno)
-        conn.execute(
+
+        existing = conn.execute(
             """
-            INSERT INTO estudiantes (nombre, id_grado, id_grupo, id_turno, estado_activo)
-            VALUES (?, ?, ?, ?, 1)
+            SELECT id_estudiante
+            FROM estudiantes
+            WHERE UPPER(TRIM(nombre)) = UPPER(?)
+              AND id_grado = ?
+              AND id_grupo = ?
+              AND id_turno = ?
             """,
             (nombre_norm, id_grado, id_grupo, id_turno),
-        )
+        ).fetchone()
+        if existing:
+            raise ValueError("El estudiante ya existe en la base de datos.")
+
+        try:
+            conn.execute(
+                """
+                INSERT INTO estudiantes (nombre, id_grado, id_grupo, id_turno, estado_activo)
+                VALUES (?, ?, ?, ?, 1)
+                """,
+                (nombre_norm, id_grado, id_grupo, id_turno),
+            )
+        except sqlite3.IntegrityError as exc:
+            if "ya existe" in str(exc).lower():
+                raise ValueError("El estudiante ya existe en la base de datos.") from exc
+            raise
         return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 

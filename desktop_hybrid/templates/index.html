@@ -3,144 +3,263 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>IdentifyMe Desktop</title>
+  <title>IdentifyMe · Panel</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-  <div class="bg-orb orb-1"></div>
-  <div class="bg-orb orb-2"></div>
 
-  <main class="layout">
-    <aside class="sidebar card">
-      <h1>IdentifyMe</h1>
-      <p class="muted">Desktop Hybrid</p>
-      <nav>
-        <button class="nav-btn active" data-view="home">Inicio</button>
-        <button class="nav-btn" data-view="login">Login facial</button>
-        <button class="nav-btn" data-view="register">Registro facial</button>
-        <button class="nav-btn" data-view="admin">Admin panel</button>
-      </nav>
-      <div class="status-box">
-        <p class="label">Sistema</p>
-        <p id="systemStatus">Consultando estado...</p>
+  <!-- ── Overlay oscuro detrás del drawer ───────────────────────────────── -->
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+
+  <!-- ── Drawer (sidebar desplegable) ──────────────────────────────────── -->
+  <aside id="drawer" class="drawer">
+    <div class="drawer-head">
+      <div class="drawer-brand">
+        <span class="drawer-brand__icon">🔐</span>
+        <div>
+          <p class="drawer-brand__name">IdentifyMe</p>
+          <p class="drawer-brand__sub">Biométrico escolar</p>
+        </div>
       </div>
-    </aside>
+      <button id="drawerClose" class="icon-btn" aria-label="Cerrar menú">✕</button>
+    </div>
 
-    <section class="content">
+    <nav class="drawer-nav">
+      <button class="nav-btn active" data-view="home">
+        <span class="nav-btn__icon">🏠</span><span>Inicio</span>
+      </button>
+      <button class="nav-btn" data-view="login">
+        <span class="nav-btn__icon">👤</span><span>Acceso facial</span>
+      </button>
+      <button class="nav-btn" data-view="register">
+        <span class="nav-btn__icon">➕</span><span>Registro facial</span>
+      </button>
+      <button class="nav-btn" data-view="admin">
+        <span class="nav-btn__icon">⚙️</span><span>Admin panel</span>
+      </button>
+    </nav>
+
+    <div class="drawer-status-box">
+      <p class="drawer-status-box__label">Estado del sistema</p>
+      <p id="systemStatus" class="drawer-status-box__val">Consultando...</p>
+    </div>
+
+    <button class="drawer-logout" id="logoutBtn">Cerrar sesión</button>
+  </aside>
+
+  <!-- ── Layout principal ───────────────────────────────────────────────── -->
+  <div class="app-layout">
+
+    <!-- Topbar fija -->
+    <header class="topbar">
+      <!-- Botón hamburger fijo a la izquierda -->
+      <button id="hamburger" class="icon-btn burger" aria-label="Abrir menú">☰</button>
+
+      <div class="topbar-info">
+        <p class="eyebrow">IdentifyMe</p>
+        <p class="topbar-title">Sistema biométrico escolar</p>
+      </div>
+
+      <!-- Reloj -->
+      <div class="topbar-clock">
+        <div id="clockH" class="clock-h">--:--</div>
+        <div id="clockD" class="clock-d"></div>
+      </div>
+    </header>
+
+    <!-- Área de vistas -->
+    <main class="views-wrap">
+
+      <!-- ── Vista: Home ───────────────────────────────────────────────── -->
       <section class="view card" id="view-home">
         <p class="eyebrow">Bienvenido</p>
         <h2>Panel principal</h2>
-        <p class="muted">Aplicacion de escritorio con Flask + PyWebview y logica de reconocimiento facial integrada.</p>
+        <p class="muted sm">Dashboard escolar para acceso facial, registro biométrico y administración.</p>
+
+        <div class="grid-2" style="margin:14px 0 12px">
+          <div class="stat-tile">
+            <strong id="statTotal">---</strong>
+            <span>Estudiantes</span>
+          </div>
+          <div class="stat-tile">
+            <strong id="statActivos">---</strong>
+            <span>Activos</span>
+          </div>
+        </div>
+
+        <!-- Indicador de estado -->
+        <div class="system-status-box">
+          <div class="system-status-box__dot" id="homeStatusDot"></div>
+          <div>
+            <div class="system-status-box__title">Sistema en línea</div>
+            <div class="system-status-box__sub" id="homeStatusSub">Cámara activa · Modelo listo</div>
+          </div>
+          <span class="system-status-box__badge">Operando</span>
+        </div>
+
+        <!-- Últimos accesos -->
+        <div class="last-access-box">
+          <div class="last-access-box__head">Últimos accesos</div>
+          <div id="lastAccessList">
+            <div class="last-access-box__empty">Sin registros recientes</div>
+          </div>
+        </div>
       </section>
 
+      <!-- ── Vista: Login ──────────────────────────────────────────────── -->
       <section class="view card hidden" id="view-login">
-        <h2>Login con reconocimiento facial</h2>
+        <h2>Acceso facial</h2>
+        <p class="muted sm">Escanea el rostro del estudiante y valida el acceso en tiempo real.</p>
+
         <div class="camera-box">
           <video id="loginVideo" autoplay playsinline muted></video>
           <canvas id="loginCanvas" class="hidden"></canvas>
         </div>
+
         <div class="row">
-          <button id="loginStart">Iniciar camara</button>
-          <button id="loginStop" class="btn-danger" disabled>Detener</button>
+          <button id="loginStart"><span>▶</span><span>Iniciar</span></button>
+          <button id="loginStop" class="btn-danger" disabled><span>⏹</span><span>Detener</span></button>
         </div>
+
         <p id="loginMessage" class="feedback">ESPERANDO ROSTRO...</p>
-        <div class="grid-2 user-card">
+
+        <div class="user-card grid-2">
           <p><strong>Nombre:</strong> <span id="loginUserName">---</span></p>
-          <p><strong>Salon:</strong> <span id="loginUserClass">---</span></p>
-          <p><strong>Edad:</strong> <span id="loginUserAge">---</span></p>
-          <p><strong>ID:</strong> <span id="loginUserId">---</span></p>
+          <p><strong>Salón:</strong>  <span id="loginUserClass">---</span></p>
+          <p><strong>Edad:</strong>   <span id="loginUserAge">---</span></p>
+          <p><strong>ID:</strong>     <span id="loginUserId">---</span></p>
         </div>
       </section>
 
+      <!-- ── Vista: Register ───────────────────────────────────────────── -->
       <section class="view card hidden" id="view-register">
-        <h2>Registro biometrico</h2>
-        <div class="grid-4 form-grid">
-          <label>Nombre <input id="regNombre" type="text" maxlength="80" placeholder="Ej. Ana Gomez"></label>
-          <label>Grado <select id="regGrado"><option>1</option><option>2</option><option>3</option></select></label>
-          <label>Grupo <input id="regLetra" type="text" maxlength="1" placeholder="A"></label>
-          <label>Turno <select id="regTurno"><option>MATUTINO</option><option>VESPERTINO</option></select></label>
+        <h2>Registro biométrico</h2>
+        <p class="muted sm">Captura nuevos alumnos con sus datos escolares y biometría facial.</p>
+
+        <div class="grid-4 form-grid" style="margin-top:12px">
+          <label>Nombre
+            <input id="regNombre" type="text" maxlength="80" placeholder="Ej. Ana Gómez">
+          </label>
+          <label>Grado
+            <select id="regGrado">
+              <option>1</option><option>2</option><option>3</option>
+            </select>
+          </label>
+          <label>Grupo
+            <input id="regLetra" type="text" maxlength="1" placeholder="A">
+          </label>
+          <label>Turno
+            <select id="regTurno">
+              <option>MATUTINO</option><option>VESPERTINO</option>
+            </select>
+          </label>
         </div>
+
         <div class="camera-box compact">
           <video id="regVideo" autoplay playsinline muted></video>
           <canvas id="regCanvas" class="hidden"></canvas>
         </div>
+
         <div class="row">
-          <button id="regStart">Iniciar camara</button>
-          <button id="regCapture">Capturar y registrar</button>
-          <button id="regStop" class="btn-danger" disabled>Detener</button>
+          <button id="regStart"><span>📷</span><span>Iniciar</span></button>
+          <button id="regCapture"><span>👤</span><span>Capturar</span></button>
+          <button id="regStop" class="btn-danger" disabled><span>⏹</span><span>Detener</span></button>
         </div>
+
         <p id="regMessage" class="feedback">Completa datos y captura tu rostro.</p>
       </section>
 
+      <!-- ── Vista: Admin ──────────────────────────────────────────────── -->
       <section class="view card hidden" id="view-admin">
         <h2>Admin panel</h2>
+        <p class="muted sm">Gestión escolar, parámetros del modelo y administradores.</p>
 
-        <div class="tabs-inline">
-          <button class="tab-btn active" data-admin-tab="students">CRUD estudiantes</button>
-          <button class="tab-btn" data-admin-tab="model">Configuracion modelo</button>
-          <button class="tab-btn" data-admin-tab="admins">Registro administrador</button>
+        <div class="tabs-inline" style="margin-top:12px">
+          <button class="tab-btn active" data-admin-tab="students">
+            <span>👥</span><span>Estudiantes</span>
+          </button>
+          <button class="tab-btn" data-admin-tab="model">
+            <span>🎛</span><span>Modelo</span>
+          </button>
+          <button class="tab-btn" data-admin-tab="admins">
+            <span>🛡</span><span>Admins</span>
+          </button>
         </div>
 
+        <!-- Tab: Estudiantes -->
         <section id="admin-students" class="admin-tab">
           <div class="grid-4 form-grid">
             <label>Nombre <input id="admNombre" type="text"></label>
-            <label>Grado <select id="admGrado"><option>1</option><option>2</option><option>3</option></select></label>
+            <label>Grado
+              <select id="admGrado"><option>1</option><option>2</option><option>3</option></select>
+            </label>
             <label>Grupo <input id="admGrupo" type="text" maxlength="1"></label>
-            <label>Turno <select id="admTurno"><option>MATUTINO</option><option>VESPERTINO</option></select></label>
+            <label>Turno
+              <select id="admTurno"><option>MATUTINO</option><option>VESPERTINO</option></select>
+            </label>
           </div>
           <div class="row">
-            <button id="admCreate">Crear estudiante</button>
-            <button id="admRefresh">Refrescar lista</button>
+            <button id="admCreate"><span>➕</span><span>Crear estudiante</span></button>
+            <button id="admRefresh"><span>🔄</span><span>Refrescar</span></button>
           </div>
-          <p id="admStudentsMsg" class="feedback">Gestion de estudiantes.</p>
+          <p id="admStudentsMsg" class="feedback">Gestión de estudiantes.</p>
           <div class="table-wrap">
             <table id="studentsTable">
               <thead>
-                <tr><th>ID</th><th>Nombre</th><th>Grado</th><th>Grupo</th><th>Turno</th><th>Estado</th><th>Acciones</th></tr>
+                <tr>
+                  <th>ID</th><th>Nombre</th><th>Grado</th>
+                  <th>Grupo</th><th>Turno</th><th>Estado</th><th>Acciones</th>
+                </tr>
               </thead>
               <tbody></tbody>
             </table>
           </div>
         </section>
 
+        <!-- Tab: Modelo -->
         <section id="admin-model" class="admin-tab hidden">
           <div class="grid-3 form-grid">
-            <label>Scale <input id="cfgScale" type="number" min="0.05" max="1.0" step="0.01"></label>
-            <label>Tolerance <input id="cfgTolerance" type="number" min="0.2" max="1.0" step="0.01"></label>
-            <label>Cooldown (s) <input id="cfgCooldown" type="number" min="0" max="120" step="0.5"></label>
+            <label>Scale     <input id="cfgScale"     type="number" min="0.05" max="1.0"  step="0.01"></label>
+            <label>Tolerance <input id="cfgTolerance" type="number" min="0.2"  max="1.0"  step="0.01"></label>
+            <label>Cooldown  <input id="cfgCooldown"  type="number" min="0"    max="120"  step="0.5"></label>
           </div>
           <div class="row">
-            <button id="cfgLoad">Cargar configuracion</button>
-            <button id="cfgSave">Guardar configuracion</button>
+            <button id="cfgLoad"><span>⬇</span><span>Cargar</span></button>
+            <button id="cfgSave"><span>💾</span><span>Guardar</span></button>
           </div>
-          <p id="cfgMsg" class="feedback">Configuracion del modelo.</p>
+          <p id="cfgMsg" class="feedback">Configuración del modelo.</p>
         </section>
 
+        <!-- Tab: Admins -->
         <section id="admin-admins" class="admin-tab hidden">
           <div class="grid-2 form-grid">
-            <label>No. empleado <input id="adminNum" type="text"></label>
-            <label>Nombre completo <input id="adminNombre" type="text"></label>
-            <label>Rol <input id="adminRol" type="text" value="ADMIN"></label>
-            <label>Correo <input id="adminCorreo" type="email"></label>
-            <label>Password <input id="adminPass" type="password"></label>
+            <label>No. empleado   <input id="adminNum"    type="text"></label>
+            <label>Nombre         <input id="adminNombre" type="text"></label>
+            <label>Rol            <input id="adminRol"    type="text" value="ADMIN"></label>
+            <label>Correo         <input id="adminCorreo" type="email"></label>
+            <label>Password       <input id="adminPass"   type="password"></label>
           </div>
           <div class="row">
-            <button id="adminCreate">Registrar administrador</button>
-            <button id="adminRefresh">Refrescar admins</button>
+            <button id="adminCreate"><span>🛡</span><span>Registrar admin</span></button>
+            <button id="adminRefresh"><span>🔄</span><span>Refrescar</span></button>
           </div>
           <p id="adminMsg" class="feedback">Registro de administradores.</p>
           <div class="table-wrap">
             <table id="adminsTable">
               <thead>
-                <tr><th>ID</th><th>No. empleado</th><th>Nombre</th><th>Rol</th><th>Correo</th><th>Estado</th></tr>
+                <tr>
+                  <th>ID</th><th>No. empleado</th><th>Nombre</th>
+                  <th>Rol</th><th>Correo</th><th>Estado</th>
+                </tr>
               </thead>
               <tbody></tbody>
             </table>
           </div>
         </section>
       </section>
-    </section>
-  </main>
+
+    </main>
+  </div>
 
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

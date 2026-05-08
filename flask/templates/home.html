@@ -1,23 +1,54 @@
 {% extends 'base.html' %}
 {% block title %}Identifyme | Inicio{% endblock %}
 {% block content %}
+
+{# ── Hero ─────────────────────────────────────────────────────────────────── #}
 <section class="hero card reveal">
-  <p class="kicker">VerifyMe</p>
-  <h1>Sistema de acceso facial</h1>
-  <p class="muted">Replica web moderna del flujo actual: iniciar sesion facial y registrar biometria en la misma base de datos.</p>
+  <div class="hero-badge">
+    <span class="hero-dot"></span>
+    Sistema activo
+  </div>
+  <div class="hero-icon">🔐</div>
+  <h1>Identifyme</h1>
+  <p class="hero-sub">Acceso facial inteligente para control de entrada seguro y confiable.</p>
 </section>
 
-<section class="grid-two">
-  <article class="card reveal delay-1">
-    <h2>Iniciar sesion</h2>
-    <p>Valida acceso con reconocimiento facial, mensajes de estado y datos del usuario detectado.</p>
-    <a class="btn btn-primary" href="{{ url_for('login_page') }}">Abrir login facial</a>
+{# ── Cards de acción ──────────────────────────────────────────────────────── #}
+<div class="action-stack">
+
+  <article class="action-card reveal delay-1">
+    <div class="action-card__icon-wrap action-card__icon-wrap--login">
+      <span class="action-card__icon">👤</span>
+    </div>
+    <div class="action-card__body">
+      <h2>Iniciar sesión</h2>
+      <p>Valida tu acceso mediante reconocimiento facial en tiempo real.</p>
+    </div>
+    <a class="btn btn-primary action-card__cta" href="{{ url_for('login_page') }}">
+      Abrir login
+      <span class="btn-arrow">→</span>
+    </a>
   </article>
 
-  <article class="card reveal delay-2">
-    <h2>Registrar usuario</h2>
-    <p>Captura rostro desde webcam y guarda datos de estudiante con grado, grupo y turno.</p>
-    <a class="btn btn-secondary" href="{{ url_for('register_page') }}">Abrir registro biometrico</a>
+  <article class="action-card reveal delay-2">
+    <div class="action-card__icon-wrap action-card__icon-wrap--register">
+      <span class="action-card__icon">✚</span>
+    </div>
+    <div class="action-card__body">
+      <h2>Registrar usuario</h2>
+      <p>Captura tu rostro y guarda tu perfil con grado, grupo y turno.</p>
+    </div>
+    <a class="btn btn-secondary action-card__cta" href="{{ url_for('register_page') }}">
+      Abrir registro
+      <span class="btn-arrow">→</span>
+    </a>
   </article>
-</section>
+
+</div>
+
+{# ── Footer mínimo ────────────────────────────────────────────────────────── #}
+<footer class="home-footer reveal delay-3">
+  © 2026 Identifyme · Reconocimiento Facial
+</footer>
+
 {% endblock %}
