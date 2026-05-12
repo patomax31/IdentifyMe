@@ -1,12 +1,14 @@
-"""Detección simple de parpadeo con landmarks de face_recognition (EAR)."""
+"""Detección de parpadeo con landmarks (EAR) y baseline adaptativo por persona."""
 
 from __future__ import annotations
 
 import math
+import statistics
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+import cv2
 import face_recognition
 
 
@@ -34,12 +36,20 @@ def mean_ear_from_landmarks(landmarks: Dict[str, Any]) -> Optional[float]:
     return (_eye_aspect_ratio(left) + _eye_aspect_ratio(right)) / 2.0
 
 
-def ear_from_frame_bgr(frame_bgr: Any) -> Optional[float]:
-    """Calcula EAR promedio si hay exactamente un rostro en el frame."""
-    import cv2
+def _resize_long_edge(frame_bgr: Any, max_side: int = 720) -> Any:
+    h, w = frame_bgr.shape[:2]
+    m = max(h, w)
+    if m <= max_side:
+        return frame_bgr
+    s = max_side / float(m)
+    return cv2.resize(frame_bgr, (int(w * s), int(h * s)), interpolation=cv2.INTER_AREA)
 
-    rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-    locs = face_recognition.face_locations(rgb, model="hog")
+
+def ear_from_frame_bgr(frame_bgr: Any) -> Optional[float]:
+    """EAR promedio con un solo rostro; redimensiona para fluidez y usa upsample HOG."""
+    small = _resize_long_edge(frame_bgr, 720)
+    rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+    locs = face_recognition.face_locations(rgb, number_of_times_to_upsample=1, model="hog")
     if len(locs) != 1:
         return None
     marks = face_recognition.face_landmarks(rgb, locs)
@@ -53,44 +63,59 @@ class BlinkSessionState:
     created: float = field(default_factory=time.monotonic)
     verified: bool = False
     verified_until: float = 0.0
-    # Máquina de estados simple: ojo abierto -> cerrado -> abierto = 1 parpadeo
-    saw_open: bool = False
-    saw_closed: bool = False
-    closed_streak: int = 0
+
+    ear_hist: List[float] = field(default_factory=list)
+    baseline: Optional[float] = None
+
+    low_streak: int = 0
+    in_blink: bool = False
     blinks: int = 0
 
-    OPEN_TH: float = 0.26
-    CLOSED_TH: float = 0.19
-    CLOSED_FRAMES: int = 2
-
     def push_ear(self, ear: Optional[float]) -> str:
-        """Devuelve estado legible: no_face, tracking, need_blink, ready."""
+        """
+        Baseline = mediana de ojos "abiertos" al inicio; parpadeo = caída relativa + reapertura.
+        Más tolerante que umbrales fijos para distancias y formas de ojo distintas.
+        """
         if ear is None:
             return "no_face"
 
-        if not self.saw_open and ear >= self.OPEN_TH:
-            self.saw_open = True
+        self.ear_hist.append(float(ear))
+        if len(self.ear_hist) > 48:
+            self.ear_hist.pop(0)
 
-        if ear <= self.CLOSED_TH:
-            self.closed_streak += 1
-        else:
-            self.closed_streak = 0
-
-        if self.saw_open and self.closed_streak >= self.CLOSED_FRAMES:
-            self.saw_closed = True
-
-        if self.saw_closed and ear >= self.OPEN_TH:
-            self.blinks += 1
-            self.saw_closed = False
-            self.closed_streak = 0
-
-        if self.blinks >= 1:
-            self.verified = True
-            self.verified_until = time.monotonic() + 15.0
-            return "ready"
-
-        if not self.saw_open:
+        if self.baseline is None:
+            if len(self.ear_hist) < 9:
+                return "tracking"
+            chunk = self.ear_hist[-18:]
+            med = statistics.median(chunk)
+            upper = [x for x in chunk if x >= med * 0.92]
+            base = statistics.mean(upper) if upper else med
+            self.baseline = max(0.14, min(0.55, float(base)))
             return "tracking"
+
+        b = self.baseline
+        # Cierre: por debajo de una fracción del baseline o caída absoluta clara
+        closed = ear < b * 0.58 or ear < b - 0.055
+        if closed:
+            self.low_streak += 1
+        else:
+            self.low_streak = 0
+
+        if not self.in_blink and self.low_streak >= 2:
+            self.in_blink = True
+
+        # Reapertura: vuelve cerca del baseline (más laxo que el umbral "abierto" inicial fijo)
+        reopened = ear >= b * 0.87
+        if self.in_blink and reopened and self.low_streak == 0:
+            self.blinks += 1
+            self.in_blink = False
+            if self.blinks >= 1:
+                self.verified = True
+                self.verified_until = time.monotonic() + 22.0
+                return "ready"
+
+        if not self.in_blink:
+            return "need_blink"
         return "need_blink"
 
     def is_verification_valid(self) -> bool:
@@ -131,12 +156,12 @@ def push_liveness_frame(session_id: str, frame_bgr: Any) -> Tuple[str, str]:
     if state == "no_face":
         return "no_face", "Coloca un solo rostro frente a la cámara."
     if state == "tracking":
-        return "tracking", "Mantén los ojos abiertos un momento…"
+        return "tracking", "Mantén los ojos abiertos un momento (mirando a la cámara)…"
     if state == "need_blink":
-        return "need_blink", "Parpadea de forma natural (un parpadeo)."
+        return "need_blink", "Parpadea una vez de forma natural (sin taparte la cara)."
     if state == "ready":
         return "ready", "Listo. Identificando…"
-    return "need_blink", "Parpadea de forma natural (un parpadeo)."
+    return "need_blink", "Parpadea una vez de forma natural (sin taparte la cara)."
 
 
 def liveness_session_ready(session_id: str) -> bool:

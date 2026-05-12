@@ -41,6 +41,7 @@ try:
     from src.infrastructure.recognition.face_engine import (
         detect_face_encodings_from_frame,
         detect_face_encodings_from_frame_robust,
+        extract_login_face_encoding,
     )
     from src.infrastructure.recognition.matcher_adapter import FaceMatcherAdapter
     from src.infrastructure.recognition.blink_liveness import (
@@ -51,6 +52,7 @@ try:
 except Exception as exc:
     detect_face_encodings_from_frame = None
     detect_face_encodings_from_frame_robust = None
+    extract_login_face_encoding = None
     FaceMatcherAdapter = None
     start_liveness_session = None
     push_liveness_frame = None
@@ -454,9 +456,25 @@ def create_app() -> Flask:
                 }
             ), 400
 
-        _, encodings = detect_face_encodings_from_frame(frame, scale=engine.recognition_settings.scale)
+        base_scale = engine.recognition_settings.scale
+        if extract_login_face_encoding is not None:
+            enc_live = extract_login_face_encoding(frame, base_scale=base_scale)
+        else:
+            enc_live = None
+        if enc_live is None:
+            _, enc_list = detect_face_encodings_from_frame(frame, scale=base_scale)
+            if len(enc_list) > 1:
+                return jsonify(
+                    {
+                        "ok": True,
+                        "state": "positioning",
+                        "message": "CENTRA TU ROSTRO",
+                        "user": None,
+                    }
+                )
+            enc_live = enc_list[0] if len(enc_list) == 1 else None
 
-        if len(encodings) == 0:
+        if enc_live is None:
             return jsonify(
                 {
                     "ok": True,
@@ -466,29 +484,24 @@ def create_app() -> Flask:
                 }
             )
 
-        if len(encodings) > 1:
-            return jsonify(
-                {
-                    "ok": True,
-                    "state": "positioning",
-                    "message": "CENTRA TU ROSTRO",
-                    "user": None,
-                }
-            )
+        web_tol = min(0.6, float(engine.recognition_settings.tolerance) + 0.08)
 
         result = engine.login_use_case.process_frame(
-            [encodings[0]],
+            [enc_live],
             engine.known_encodings,
             engine.known_labels,
             engine.known_ids,
+            tolerance=web_tol,
         )
 
         if "ACCESO CONCEDIDO" in result.message:
-            idx = engine.login_use_case.matcher.find_first_match(
-                engine.known_encodings,
-                encodings[0],
-                tolerance=engine.recognition_settings.tolerance,
-            )
+            idx = result.match_index
+            if idx is None or idx < 0:
+                idx = engine.login_use_case.matcher.find_first_match(
+                    engine.known_encodings,
+                    enc_live,
+                    tolerance=web_tol,
+                )
             user_data = None
             if 0 <= idx < len(engine.known_labels):
                 user_data = _parse_user_data(engine.known_labels[idx], engine.known_ids[idx])
