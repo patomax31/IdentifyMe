@@ -38,7 +38,10 @@ from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
 
 RUNTIME_ERROR = None
 try:
-    from src.infrastructure.recognition.face_engine import detect_face_encodings_from_frame
+    from src.infrastructure.recognition.face_engine import (
+        detect_face_encodings_from_frame,
+        detect_face_encodings_from_frame_robust,
+    )
     from src.infrastructure.recognition.matcher_adapter import FaceMatcherAdapter
     from src.infrastructure.recognition.blink_liveness import (
         liveness_session_ready,
@@ -47,6 +50,7 @@ try:
     )
 except Exception as exc:
     detect_face_encodings_from_frame = None
+    detect_face_encodings_from_frame_robust = None
     FaceMatcherAdapter = None
     start_liveness_session = None
     push_liveness_frame = None
@@ -536,10 +540,15 @@ def create_app() -> Flask:
 
         scale = engine.recognition_settings.scale
 
+        def _encode_registration_frame(fr):
+            if detect_face_encodings_from_frame_robust is not None:
+                return detect_face_encodings_from_frame_robust(fr, base_scale=scale)
+            return detect_face_encodings_from_frame(fr, scale=scale)
+
         if frame_f is not None and frame_l is not None and frame_r is not None:
-            encodings_f = detect_face_encodings_from_frame(frame_f, scale=scale)[1]
-            encodings_l = detect_face_encodings_from_frame(frame_l, scale=scale)[1]
-            encodings_r = detect_face_encodings_from_frame(frame_r, scale=scale)[1]
+            encodings_f = _encode_registration_frame(frame_f)[1]
+            encodings_l = _encode_registration_frame(frame_l)[1]
+            encodings_r = _encode_registration_frame(frame_r)[1]
             for tag, encs in (
                 ("frente", encodings_f),
                 ("perfil izquierdo", encodings_l),
@@ -547,7 +556,13 @@ def create_app() -> Flask:
             ):
                 if len(encs) == 0:
                     return jsonify(
-                        {"ok": False, "message": f"No se detecto rostro en captura: {tag}."},
+                        {
+                            "ok": False,
+                            "message": (
+                                f"No se detecto rostro en {tag}. "
+                                "Prueba con mas luz, acerca el rostro o un giro mas leve (debe verse parte del rostro)."
+                            ),
+                        },
                     ), 400
                 if len(encs) > 1:
                     return jsonify(
@@ -569,7 +584,7 @@ def create_app() -> Flask:
                 foto_bytes,
             )
         elif legacy is not None:
-            _, encodings = detect_face_encodings_from_frame(legacy, scale=scale)
+            _, encodings = _encode_registration_frame(legacy)
             result = engine.registration_use_case.register_from_detected_faces(
                 nombre,
                 int(grado_raw),
