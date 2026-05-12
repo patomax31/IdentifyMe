@@ -32,7 +32,15 @@ class RegistrationRepositoryPort(Protocol):
     def create_student(self, nombre: str, grado: int, letra: str, turno: str) -> int:
         ...
 
-    def save_student_biometric(self, id_estudiante: int, encoding) -> None:
+    def save_student_biometric(
+        self,
+        id_estudiante: int,
+        encoding,
+        *,
+        encoding_izquierdo=None,
+        encoding_derecho=None,
+        foto_jpeg_bytes: Optional[bytes] = None,
+    ) -> None:
         ...
 
 

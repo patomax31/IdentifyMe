@@ -347,4 +347,16 @@ def migrate_local_schema(conn: sqlite3.Connection) -> None:
         """
     )
     ensure_student_duplicate_trigger(conn)
+    _ensure_datos_biometricos_extra_columns(conn)
     ensure_reporting_views(conn)
+
+
+def _ensure_datos_biometricos_extra_columns(conn: sqlite3.Connection) -> None:
+    """Añade columnas para foto de credencial y encodings de perfiles (migraciones locales)."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(datos_biometricos)").fetchall()}
+    if "foto_credencial" not in cols:
+        conn.execute("ALTER TABLE datos_biometricos ADD COLUMN foto_credencial TEXT")
+    if "vector_perfil_izq" not in cols:
+        conn.execute("ALTER TABLE datos_biometricos ADD COLUMN vector_perfil_izq TEXT")
+    if "vector_perfil_der" not in cols:
+        conn.execute("ALTER TABLE datos_biometricos ADD COLUMN vector_perfil_der TEXT")

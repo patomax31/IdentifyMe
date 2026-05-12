@@ -19,8 +19,8 @@ class FakeRepo:
         self.next_id += 1
         return student_id
 
-    def save_student_biometric(self, student_id, encoding):
-        self.saved.append((student_id, encoding))
+    def save_student_biometric(self, student_id, encoding, **kwargs):
+        self.saved.append((student_id, encoding, kwargs))
 
 
 class RegistrationServiceTests(unittest.TestCase):
@@ -41,7 +41,9 @@ class RegistrationServiceTests(unittest.TestCase):
 
         self.assertEqual(1, student_id)
         self.assertEqual([("Juan Perez", 2, "B", "VESPERTINO")], repo.created)
-        self.assertEqual([(1, encoding)], repo.saved)
+        self.assertEqual(1, len(repo.saved))
+        self.assertEqual(1, repo.saved[0][0])
+        self.assertEqual(encoding, repo.saved[0][1])
 
 
 if __name__ == "__main__":

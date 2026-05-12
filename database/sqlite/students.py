@@ -1,11 +1,12 @@
 import os
 import pickle
 import sqlite3
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from .connection import connect
 from .encoding import encoding_to_text, text_to_encoding
 from .migrations import initialize_database
+from .paths import BASE_DIR
 
 
 def _normalize_grade(grado: int) -> str:
@@ -100,11 +101,29 @@ def create_student(nombre: str, grado: int, letra: str, turno: str) -> int:
         return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 
-def save_student_biometric(id_estudiante: int, encoding) -> None:
+def save_student_biometric(
+    id_estudiante: int,
+    encoding,
+    *,
+    encoding_izquierdo=None,
+    encoding_derecho=None,
+    foto_jpeg_bytes: Optional[bytes] = None,
+) -> None:
     initialize_database()
+
+    foto_rel: Optional[str] = None
+    if foto_jpeg_bytes:
+        cred_dir = os.path.join(BASE_DIR, "data", "credentials")
+        os.makedirs(cred_dir, exist_ok=True)
+        foto_rel = f"data/credentials/est_{id_estudiante}.jpg"
+        out_path = os.path.join(BASE_DIR, *foto_rel.split("/"))
+        with open(out_path, "wb") as f:
+            f.write(foto_jpeg_bytes)
 
     with connect() as conn:
         vector_text = encoding_to_text(encoding)
+        vi_text = encoding_to_text(encoding_izquierdo) if encoding_izquierdo is not None else None
+        vd_text = encoding_to_text(encoding_derecho) if encoding_derecho is not None else None
 
         conn.execute(
             "DELETE FROM datos_biometricos WHERE tipo_usuario = 'ESTUDIANTE' AND id_usuario_ref = ?",
@@ -112,10 +131,13 @@ def save_student_biometric(id_estudiante: int, encoding) -> None:
         )
         conn.execute(
             """
-            INSERT INTO datos_biometricos (tipo_usuario, id_usuario_ref, vector_facial)
-            VALUES ('ESTUDIANTE', ?, ?)
+            INSERT INTO datos_biometricos (
+                tipo_usuario, id_usuario_ref, vector_facial,
+                foto_credencial, vector_perfil_izq, vector_perfil_der
+            )
+            VALUES ('ESTUDIANTE', ?, ?, ?, ?, ?)
             """,
-            (id_estudiante, vector_text),
+            (id_estudiante, vector_text, foto_rel, vi_text, vd_text),
         )
 
 
@@ -129,7 +151,15 @@ def load_student_biometrics() -> Tuple[List, List[str], List[int]]:
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT e.id_estudiante, e.nombre, gd.clave, gp.clave, tr.clave, d.vector_facial
+            SELECT
+                e.id_estudiante,
+                e.nombre,
+                gd.clave,
+                gp.clave,
+                tr.clave,
+                d.vector_facial,
+                d.vector_perfil_izq,
+                d.vector_perfil_der
             FROM datos_biometricos d
             JOIN estudiantes e ON e.id_estudiante = d.id_usuario_ref
             JOIN grados gd ON gd.id_grado = e.id_grado
@@ -139,10 +169,16 @@ def load_student_biometrics() -> Tuple[List, List[str], List[int]]:
             """
         ).fetchall()
 
-    for student_id, nombre, grado, letra, turno, vector_text in rows:
-        encodings.append(text_to_encoding(vector_text))
-        etiquetas.append(f"{nombre} ({grado}{letra}-{turno}) #{student_id}")
-        student_ids.append(student_id)
+    label_template = "{nombre} ({grado}{letra}-{turno}) #{sid}"
+
+    for student_id, nombre, grado, letra, turno, vf, vi, vd in rows:
+        label = label_template.format(nombre=nombre, grado=grado, letra=letra, turno=turno, sid=student_id)
+        for vector_text in (vf, vi, vd):
+            if not vector_text:
+                continue
+            encodings.append(text_to_encoding(vector_text))
+            etiquetas.append(label)
+            student_ids.append(student_id)
 
     return encodings, etiquetas, student_ids
 
