@@ -125,28 +125,49 @@ async function fetchHomeStats() {
 
 fetchHomeStats();
 
-// ── Cámara: Login ─────────────────────────────────────────────────────────
-let loginStream    = null;
-let loginInterval  = null;
+// ── Cámara: Login + liveness + credencial ─────────────────────────────────
+let loginStream     = null;
+let loginInterval   = null;
+let loginLivenessId = null;
+let loginLivenessOk = false;
 
-const loginVideo   = document.getElementById('loginVideo');
-const loginCanvas  = document.getElementById('loginCanvas');
-const loginStart   = document.getElementById('loginStart');
-const loginStop    = document.getElementById('loginStop');
-const loginMessage = document.getElementById('loginMessage');
+const loginVideo        = document.getElementById('loginVideo');
+const loginCanvas       = document.getElementById('loginCanvas');
+const loginStart        = document.getElementById('loginStart');
+const loginStop         = document.getElementById('loginStop');
+const loginMessage      = document.getElementById('loginMessage');
+const loginLivenessRow   = document.getElementById('loginLivenessRow');
+const loginLivenessText  = document.getElementById('loginLivenessText');
+const loginLivenessDot   = document.getElementById('loginLivenessDot');
+const loginCredPhoto     = document.getElementById('loginCredPhoto');
+const loginCredPhotoPh   = document.getElementById('loginCredPhotoPh');
 
 const loginFields = {
   name:  document.getElementById('loginUserName'),
-  cls:   document.getElementById('loginUserClass'),
-  age:   document.getElementById('loginUserAge'),
+  grado: document.getElementById('loginUserGrado'),
+  grupo: document.getElementById('loginUserGrupo'),
+  turno: document.getElementById('loginUserTurno'),
   id:    document.getElementById('loginUserId'),
 };
 
+function setLivenessUi(state, text) {
+  if (loginLivenessText) loginLivenessText.textContent = text || '';
+  if (!loginLivenessDot) return;
+  loginLivenessDot.style.background =
+    state === 'ready' ? '#16A34A' : state === 'need_blink' ? '#CA8A04' : 'var(--primary)';
+}
+
 function resetLoginUser() {
-  if (loginFields.name) loginFields.name.textContent = '---';
-  if (loginFields.cls)  loginFields.cls.textContent  = '---';
-  if (loginFields.age)  loginFields.age.textContent  = '---';
-  if (loginFields.id)   loginFields.id.textContent   = '---';
+  if (loginFields.name)  loginFields.name.textContent  = '---';
+  if (loginFields.grado) loginFields.grado.textContent = '---';
+  if (loginFields.grupo) loginFields.grupo.textContent = '---';
+  if (loginFields.turno) loginFields.turno.textContent = '---';
+  if (loginFields.id)    loginFields.id.textContent    = '---';
+  if (loginCredPhoto) {
+    loginCredPhoto.classList.add('hidden');
+    loginCredPhoto.removeAttribute('src');
+  }
+  if (loginCredPhotoPh) loginCredPhotoPh.classList.remove('hidden');
 }
 
 async function captureAndVerify() {
@@ -157,36 +178,90 @@ async function captureAndVerify() {
   const image = loginCanvas.toDataURL('image/jpeg', 0.8);
 
   try {
-    const res  = await fetch('/api/login/verify', {
+    const res = await fetch('/api/login/verify', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ image }),
+      body:    JSON.stringify({ image, liveness_session_id: loginLivenessId }),
     });
     const data = await res.json();
 
     if (loginMessage) {
-      loginMessage.textContent  = data.message || '';
-      loginMessage.className    = `feedback ${data.state || ''}`;
+      loginMessage.textContent = data.message || '';
+      loginMessage.className   = `feedback ${data.state || ''}`;
     }
 
     if (data.state === 'granted' && data.user) {
-      if (loginFields.name) loginFields.name.textContent = data.user.nombre || '---';
-      if (loginFields.cls)  loginFields.cls.textContent  = data.user.salon  || '---';
-      if (loginFields.age)  loginFields.age.textContent  = data.user.edad   || '---';
-      if (loginFields.id)   loginFields.id.textContent   = `#${data.user.id}` || '---';
+      if (loginFields.name)  loginFields.name.textContent  = data.user.nombre || '---';
+      if (loginFields.grado) loginFields.grado.textContent = data.user.grado || '---';
+      if (loginFields.grupo) loginFields.grupo.textContent = data.user.grupo || '---';
+      if (loginFields.turno) loginFields.turno.textContent = data.user.turno || '---';
+      if (loginFields.id)    loginFields.id.textContent    = data.user.id != null ? `#${data.user.id}` : '---';
+
+      if (data.user.foto_url && loginCredPhoto) {
+        loginCredPhoto.src = `${data.user.foto_url}?t=${Date.now()}`;
+        loginCredPhoto.classList.remove('hidden');
+        if (loginCredPhotoPh) loginCredPhotoPh.classList.add('hidden');
+      } else {
+        if (loginCredPhoto) loginCredPhoto.classList.add('hidden');
+        if (loginCredPhotoPh) loginCredPhotoPh.classList.remove('hidden');
+      }
     } else {
       resetLoginUser();
     }
   } catch (_) {}
 }
 
+async function pushLivenessFrame() {
+  if (!loginVideo || !loginCanvas || !loginLivenessId) return;
+  loginCanvas.width  = loginVideo.videoWidth;
+  loginCanvas.height = loginVideo.videoHeight;
+  loginCanvas.getContext('2d').drawImage(loginVideo, 0, 0);
+  const image = loginCanvas.toDataURL('image/jpeg', 0.75);
+  try {
+    const res = await fetch('/api/login/liveness/frame', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ session_id: loginLivenessId, image }),
+    });
+    const data = await res.json();
+    setLivenessUi(data.state, data.message);
+    if (data.state === 'ready') {
+      loginLivenessOk = true;
+      if (loginMessage) {
+        loginMessage.textContent = 'Identificando…';
+        loginMessage.className   = 'feedback waiting';
+      }
+    }
+  } catch (_) {}
+}
+
 loginStart?.addEventListener('click', async () => {
   try {
+    resetLoginUser();
+    loginLivenessOk = false;
+    loginLivenessId = null;
+    setLivenessUi('init', 'Conectando verificación de vida…');
+
+    const ls = await fetch('/api/login/liveness/start', { method: 'POST' });
+    const lj = await ls.json();
+    if (!lj.ok || !lj.session_id) {
+      if (loginMessage) loginMessage.textContent = lj.message || 'No se pudo iniciar liveness.';
+      return;
+    }
+    loginLivenessId = lj.session_id;
+
     loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
     if (loginVideo) loginVideo.srcObject = loginStream;
     loginStart.disabled = true;
     loginStop.disabled  = false;
-    loginInterval = setInterval(captureAndVerify, 1200);
+
+    loginInterval = setInterval(async () => {
+      if (!loginLivenessOk) {
+        await pushLivenessFrame();
+        return;
+      }
+      await captureAndVerify();
+    }, 600);
   } catch (e) {
     if (loginMessage) loginMessage.textContent = 'No se pudo acceder a la cámara.';
   }
@@ -194,11 +269,15 @@ loginStart?.addEventListener('click', async () => {
 
 loginStop?.addEventListener('click', () => {
   clearInterval(loginInterval);
+  loginInterval = null;
   if (loginStream) loginStream.getTracks().forEach(t => t.stop());
   loginStream = null;
   if (loginVideo) loginVideo.srcObject = null;
   loginStart.disabled = false;
   loginStop.disabled  = true;
+  loginLivenessId = null;
+  loginLivenessOk = false;
+  setLivenessUi('off', 'Verificación detenida. Pulsa Iniciar de nuevo.');
   if (loginMessage) {
     loginMessage.textContent = 'ESPERANDO ROSTRO...';
     loginMessage.className   = 'feedback';
@@ -206,23 +285,69 @@ loginStop?.addEventListener('click', () => {
   resetLoginUser();
 });
 
-// ── Cámara: Register ──────────────────────────────────────────────────────
+// ── Cámara: Registro (3 ángulos) ────────────────────────────────────────
 let regStream = null;
 
-const regVideo   = document.getElementById('regVideo');
-const regCanvas  = document.getElementById('regCanvas');
-const regStart   = document.getElementById('regStart');
-const regCapture = document.getElementById('regCapture');
-const regStop    = document.getElementById('regStop');
-const regMessage = document.getElementById('regMessage');
+const regVideo         = document.getElementById('regVideo');
+const regCanvas        = document.getElementById('regCanvas');
+const regStart         = document.getElementById('regStart');
+const regCapture       = document.getElementById('regCapture');
+const regCaptureLabel  = document.getElementById('regCaptureLabel');
+const regStop          = document.getElementById('regStop');
+const regMessage       = document.getElementById('regMessage');
+const regStepHint      = document.getElementById('regStepHint');
+const regStepper       = document.getElementById('regStepper');
+
+const REG_STEPS = [
+  {
+    key:   'front',
+    field: 'image_front',
+    label: 'Capturar frente',
+    hint:  'Paso 1 de 3: mira de frente. Esta imagen será tu foto de credencial.',
+  },
+  {
+    key:   'left',
+    field: 'image_left',
+    label: 'Capturar perfil izquierdo',
+    hint:  'Paso 2 de 3: gira la cabeza hacia tu izquierda (solo el perfil visible).',
+  },
+  {
+    key:   'right',
+    field: 'image_right',
+    label: 'Registrar alumno',
+    hint:  'Paso 3 de 3: gira la cabeza hacia tu derecha. Luego pulsa el botón para guardar.',
+  },
+];
+
+let regStepIndex = 0;
+const regImages = { image_front: null, image_left: null, image_right: null };
+
+function updateRegStepUi() {
+  const step = REG_STEPS[regStepIndex];
+  if (regStepHint) regStepHint.textContent = step.hint;
+  if (regCaptureLabel) regCaptureLabel.textContent = step.label;
+  if (regStepper) {
+    regStepper.querySelectorAll('.reg-step').forEach((el, i) => {
+      el.classList.toggle('reg-step--active', i === regStepIndex);
+      el.classList.toggle('reg-step--done', i < regStepIndex);
+    });
+  }
+}
 
 regStart?.addEventListener('click', async () => {
   try {
+    regStepIndex = 0;
+    regImages.image_front = null;
+    regImages.image_left = null;
+    regImages.image_right = null;
+    updateRegStepUi();
+
     regStream = await navigator.mediaDevices.getUserMedia({ video: true });
     if (regVideo) regVideo.srcObject = regStream;
     regStart.disabled   = true;
     regCapture.disabled = false;
     regStop.disabled    = false;
+    if (regMessage) regMessage.textContent = 'Cámara lista. Sigue los pasos.';
   } catch (_) {
     if (regMessage) regMessage.textContent = 'No se pudo acceder a la cámara.';
   }
@@ -244,18 +369,43 @@ regCapture?.addEventListener('click', async () => {
   regCanvas.width  = regVideo.videoWidth;
   regCanvas.height = regVideo.videoHeight;
   regCanvas.getContext('2d').drawImage(regVideo, 0, 0);
-  const image = regCanvas.toDataURL('image/jpeg', 0.85);
+  const image = regCanvas.toDataURL('image/jpeg', 0.88);
 
-  if (regMessage) regMessage.textContent = 'Procesando...';
+  const step = REG_STEPS[regStepIndex];
+  regImages[step.field] = image;
+
+  if (regStepIndex < 2) {
+    regStepIndex += 1;
+    updateRegStepUi();
+    if (regMessage) regMessage.textContent = 'Captura guardada. Continúa con el siguiente ángulo.';
+    return;
+  }
+
+  if (regMessage) regMessage.textContent = 'Enviando registro…';
 
   try {
-    const res  = await fetch('/api/registro', {
+    const res = await fetch('/api/registro', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ nombre, grado, letra, turno, image }),
+      body:    JSON.stringify({
+        nombre,
+        grado,
+        letra,
+        turno,
+        image_front: regImages.image_front,
+        image_left:  regImages.image_left,
+        image_right: regImages.image_right,
+      }),
     });
     const data = await res.json();
     if (regMessage) regMessage.textContent = data.message || (data.ok ? '¡Registrado!' : 'Error');
+    if (data.ok) {
+      regStepIndex = 0;
+      regImages.image_front = null;
+      regImages.image_left = null;
+      regImages.image_right = null;
+      updateRegStepUi();
+    }
   } catch (_) {
     if (regMessage) regMessage.textContent = 'Error de conexión.';
   }
@@ -268,7 +418,14 @@ regStop?.addEventListener('click', () => {
   regStart.disabled   = false;
   regCapture.disabled = true;
   regStop.disabled    = true;
+  regStepIndex = 0;
+  regImages.image_front = null;
+  regImages.image_left = null;
+  regImages.image_right = null;
+  updateRegStepUi();
 });
+
+updateRegStepUi();
 
 // ── Admin: tabla de estudiantes ───────────────────────────────────────────
 async function loadStudents() {

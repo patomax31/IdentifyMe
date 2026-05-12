@@ -8,7 +8,7 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask import Flask, jsonify, render_template, request, send_file, send_from_directory
 from werkzeug.security import generate_password_hash
 
 try:
@@ -40,9 +40,17 @@ RUNTIME_ERROR = None
 try:
     from src.infrastructure.recognition.face_engine import detect_face_encodings_from_frame
     from src.infrastructure.recognition.matcher_adapter import FaceMatcherAdapter
+    from src.infrastructure.recognition.blink_liveness import (
+        liveness_session_ready,
+        push_liveness_frame,
+        start_liveness_session,
+    )
 except Exception as exc:
     detect_face_encodings_from_frame = None
     FaceMatcherAdapter = None
+    start_liveness_session = None
+    push_liveness_frame = None
+    liveness_session_ready = None
     RUNTIME_ERROR = str(exc)
 
 
@@ -126,22 +134,73 @@ def _decode_image_data_uri(image_data: str):
     return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
 
+def _credential_jpeg_path(student_id: int) -> Optional[Path]:
+    path = PROJECT_DIR / "data" / "credentials" / f"est_{student_id}.jpg"
+    return path if path.is_file() else None
+
+
+def _jpeg_encode_frame(frame, max_width: int = 520, quality: int = 88) -> Optional[bytes]:
+    if cv2 is None or frame is None:
+        return None
+    h, w = frame.shape[:2]
+    if w > max_width:
+        scale = max_width / float(w)
+        frame = cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+    ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+    if not ok:
+        return None
+    return bytes(buf)
+
+
 def _parse_user_data(label: str, student_id: int) -> Dict[str, Any]:
-    pattern = re.compile(r"^(?P<name>.+?)\s*\((?P<classroom>.+?)\)\s*#(?P<id>\d+)$")
+    pattern = re.compile(
+        r"^(?P<name>.+?)\s*\((?P<grado>\d)(?P<grupo>[A-Z])-(?P<turno>[^)]+)\)\s*#(?P<id>\d+)$"
+    )
     match = pattern.match(label.strip())
     if match:
+        sid = int(match.group("id"))
+        grado = match.group("grado")
+        grupo = match.group("grupo")
+        turno = match.group("turno")
+        salon = f"{grado}{grupo}-{turno}"
+        foto_path = _credential_jpeg_path(sid)
         return {
-            "nombre": match.group("name"),
-            "salon": match.group("classroom"),
+            "nombre": match.group("name").strip(),
+            "salon": salon,
+            "grado": grado,
+            "grupo": grupo,
+            "turno": turno,
             "edad": "---",
-            "id": int(match.group("id")),
+            "id": sid,
+            "foto_url": (f"/api/credencial/{sid}" if foto_path else None),
         }
 
+    loose = re.compile(r"^(?P<name>.+?)\s*\((?P<classroom>.+?)\)\s*#(?P<id>\d+)$")
+    m2 = loose.match(label.strip())
+    if m2:
+        sid = int(m2.group("id"))
+        foto_path = _credential_jpeg_path(sid)
+        return {
+            "nombre": m2.group("name").strip(),
+            "salon": m2.group("classroom"),
+            "grado": "---",
+            "grupo": "---",
+            "turno": "---",
+            "edad": "---",
+            "id": sid,
+            "foto_url": (f"/api/credencial/{sid}" if foto_path else None),
+        }
+
+    foto_path = _credential_jpeg_path(student_id)
     return {
         "nombre": label,
         "salon": "---",
+        "grado": "---",
+        "grupo": "---",
+        "turno": "---",
         "edad": "---",
         "id": student_id,
+        "foto_url": (f"/api/credencial/{student_id}" if foto_path else None),
     }
 
 
@@ -323,6 +382,42 @@ def create_app() -> Flask:
             }
         )
 
+    @app.get("/api/credencial/<int:student_id>")
+    def credencial_foto(student_id: int):
+        path = _credential_jpeg_path(student_id)
+        if path is None:
+            return jsonify({"ok": False, "message": "Sin fotografia de credencial"}), 404
+        return send_file(path, mimetype="image/jpeg")
+
+    @app.post("/api/login/liveness/start")
+    def liveness_start():
+        runtime_issue = _runtime_check(engine_error, engine)
+        if runtime_issue is not None:
+            return jsonify({"ok": False, "message": runtime_issue}), 500
+        if start_liveness_session is None:
+            return jsonify({"ok": False, "message": "Liveness no disponible en este entorno."}), 500
+        session_id = start_liveness_session()
+        return jsonify({"ok": True, "session_id": session_id})
+
+    @app.post("/api/login/liveness/frame")
+    def liveness_frame():
+        runtime_issue = _runtime_check(engine_error, engine)
+        if runtime_issue is not None:
+            return jsonify({"ok": False, "state": "error", "message": runtime_issue}), 500
+        if push_liveness_frame is None:
+            return jsonify({"ok": False, "state": "error", "message": "Liveness no disponible"}), 500
+
+        payload = request.get_json(silent=True) or {}
+        session_id = str(payload.get("session_id", "")).strip()
+        frame = _decode_image_data_uri(payload.get("image", ""))
+        if not session_id:
+            return jsonify({"ok": False, "state": "error", "message": "Falta session_id"}), 400
+        if frame is None:
+            return jsonify({"ok": True, "state": "no_face", "message": "Imagen invalida"})
+
+        state, message = push_liveness_frame(session_id, frame)
+        return jsonify({"ok": True, "state": state, "message": message})
+
     @app.post("/api/login/verify")
     def verify_face():
         runtime_issue = _runtime_check(engine_error, engine)
@@ -333,6 +428,17 @@ def create_app() -> Flask:
         frame = _decode_image_data_uri(payload.get("image", ""))
         if frame is None:
             return jsonify({"ok": False, "state": "error", "message": "Imagen invalida"}), 400
+
+        liveness_sid = str(payload.get("liveness_session_id") or payload.get("liveness_session") or "").strip()
+        if not liveness_sid or liveness_session_ready is None or not liveness_session_ready(liveness_sid):
+            return jsonify(
+                {
+                    "ok": True,
+                    "state": "liveness_required",
+                    "message": "Primero completa la verificación: parpadea cuando el sistema te lo pida.",
+                    "user": None,
+                }
+            )
 
         engine.refresh_known_students()
         if not engine.known_encodings:
@@ -423,18 +529,61 @@ def create_app() -> Flask:
         if turno not in {"MATUTINO", "VESPERTINO"}:
             return jsonify({"ok": False, "message": "Dato invalido. Usa MATUTINO o VESPERTINO."}), 400
 
-        frame = _decode_image_data_uri(payload.get("image", ""))
-        if frame is None:
-            return jsonify({"ok": False, "message": "Imagen invalida"}), 400
+        frame_f = _decode_image_data_uri(str(payload.get("image_front", "") or ""))
+        frame_l = _decode_image_data_uri(str(payload.get("image_left", "") or ""))
+        frame_r = _decode_image_data_uri(str(payload.get("image_right", "") or ""))
+        legacy = _decode_image_data_uri(str(payload.get("image", "") or ""))
 
-        _, encodings = detect_face_encodings_from_frame(frame, scale=engine.recognition_settings.scale)
-        result = engine.registration_use_case.register_from_detected_faces(
-            nombre,
-            int(grado_raw),
-            letra,
-            turno,
-            encodings,
-        )
+        scale = engine.recognition_settings.scale
+
+        if frame_f is not None and frame_l is not None and frame_r is not None:
+            encodings_f = detect_face_encodings_from_frame(frame_f, scale=scale)[1]
+            encodings_l = detect_face_encodings_from_frame(frame_l, scale=scale)[1]
+            encodings_r = detect_face_encodings_from_frame(frame_r, scale=scale)[1]
+            for tag, encs in (
+                ("frente", encodings_f),
+                ("perfil izquierdo", encodings_l),
+                ("perfil derecho", encodings_r),
+            ):
+                if len(encs) == 0:
+                    return jsonify(
+                        {"ok": False, "message": f"No se detecto rostro en captura: {tag}."},
+                    ), 400
+                if len(encs) > 1:
+                    return jsonify(
+                        {"ok": False, "message": f"Varios rostros en {tag}. Debe haber solo uno."},
+                    ), 400
+
+            foto_bytes = _jpeg_encode_frame(frame_f)
+            if not foto_bytes:
+                return jsonify({"ok": False, "message": "No se pudo guardar la foto de credencial."}), 400
+
+            result = engine.registration_use_case.register_from_three_encodings(
+                nombre,
+                int(grado_raw),
+                letra,
+                turno,
+                encodings_f[0],
+                encodings_l[0],
+                encodings_r[0],
+                foto_bytes,
+            )
+        elif legacy is not None:
+            _, encodings = detect_face_encodings_from_frame(legacy, scale=scale)
+            result = engine.registration_use_case.register_from_detected_faces(
+                nombre,
+                int(grado_raw),
+                letra,
+                turno,
+                encodings,
+            )
+        else:
+            return jsonify(
+                {
+                    "ok": False,
+                    "message": "Faltan imagenes. Usa image_front, image_left e image_right (registro completo).",
+                }
+            ), 400
 
         if not result.success:
             return jsonify({"ok": False, "message": result.message}), 400

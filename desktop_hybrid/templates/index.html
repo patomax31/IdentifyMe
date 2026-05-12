@@ -111,6 +111,11 @@
         <h2>Acceso facial</h2>
         <p class="muted sm">Escanea el rostro del estudiante y valida el acceso en tiempo real.</p>
 
+        <div class="liveness-hint" id="loginLivenessRow">
+          <span class="liveness-hint__dot" id="loginLivenessDot"></span>
+          <p id="loginLivenessText" class="liveness-hint__txt">Iniciando verificación de vida…</p>
+        </div>
+
         <div class="camera-box">
           <video id="loginVideo" autoplay playsinline muted></video>
           <canvas id="loginCanvas" class="hidden"></canvas>
@@ -123,18 +128,33 @@
 
         <p id="loginMessage" class="feedback">ESPERANDO ROSTRO...</p>
 
-        <div class="user-card grid-2">
-          <p><strong>Nombre:</strong> <span id="loginUserName">---</span></p>
-          <p><strong>Salón:</strong>  <span id="loginUserClass">---</span></p>
-          <p><strong>Edad:</strong>   <span id="loginUserAge">---</span></p>
-          <p><strong>ID:</strong>     <span id="loginUserId">---</span></p>
+        <div class="credential-card" id="loginCredentialCard">
+          <div class="credential-card__photo">
+            <img id="loginCredPhoto" class="credential-card__img hidden" alt="Foto credencial" />
+            <div id="loginCredPhotoPh" class="credential-card__ph">Sin foto</div>
+          </div>
+          <div class="credential-card__meta">
+            <p class="credential-card__title">Credencial</p>
+            <p><strong>Nombre</strong> <span id="loginUserName">---</span></p>
+            <p><strong>Grado</strong> <span id="loginUserGrado">---</span></p>
+            <p><strong>Grupo</strong> <span id="loginUserGrupo">---</span></p>
+            <p><strong>Turno</strong> <span id="loginUserTurno">---</span></p>
+            <p><strong>ID</strong> <span id="loginUserId">---</span></p>
+          </div>
         </div>
       </section>
 
       <!-- ── Vista: Register ───────────────────────────────────────────── -->
       <section class="view card hidden" id="view-register">
         <h2>Registro biométrico</h2>
-        <p class="muted sm">Captura nuevos alumnos con sus datos escolares y biometría facial.</p>
+        <p class="muted sm">Tres capturas (frente, perfil izquierdo y derecho) y foto de credencial desde el frente.</p>
+
+        <div class="reg-stepper" id="regStepper" aria-hidden="true">
+          <div class="reg-step reg-step--active" data-step="0"><span>1</span><small>Frente</small></div>
+          <div class="reg-step" data-step="1"><span>2</span><small>Izq.</small></div>
+          <div class="reg-step" data-step="2"><span>3</span><small>Der.</small></div>
+        </div>
+        <p id="regStepHint" class="reg-step-hint muted sm">Paso 1 de 3: mira de frente. La foto de credencial se toma en este paso.</p>
 
         <div class="grid-4 form-grid" style="margin-top:12px">
           <label>Nombre
@@ -161,12 +181,12 @@
         </div>
 
         <div class="row">
-          <button id="regStart"><span>📷</span><span>Iniciar</span></button>
-          <button id="regCapture"><span>👤</span><span>Capturar</span></button>
+          <button id="regStart"><span>📷</span><span>Iniciar cámara</span></button>
+          <button id="regCapture" disabled><span>✓</span><span id="regCaptureLabel">Capturar frente</span></button>
           <button id="regStop" class="btn-danger" disabled><span>⏹</span><span>Detener</span></button>
         </div>
 
-        <p id="regMessage" class="feedback">Completa datos y captura tu rostro.</p>
+        <p id="regMessage" class="feedback">Completa datos y las tres capturas.</p>
       </section>
 
       <!-- ── Vista: Admin ──────────────────────────────────────────────── -->
