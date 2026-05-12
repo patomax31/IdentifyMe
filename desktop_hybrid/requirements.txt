@@ -1,6 +1,19 @@
+# Dependencias directas de desktop_hybrid.
+# pywebview en Windows declara "pythonnet", que en Python 3.14 suele no tener wheel
+# y falla al compilar (NuGet, MSVC). Esta app usa PyWebview con backend Qt (gui="qt")
+# y no necesita pythonnet en runtime.
+#
+# Instalación recomendada (una sola vez):
+#   .\install_deps.ps1
+# o manualmente:
+#   pip install -r requirements.txt
+#   pip install --no-deps "pywebview>=5.0,<6.0"
+
 Flask>=3.0,<4.0
-pywebview>=5.0,<6.0
 Werkzeug>=3.0,<4.0
 qtpy>=2.4.0
 PyQt6>=6.7.0
 PyQt6-WebEngine>=6.7.0
+proxy_tools
+bottle
+typing_extensions
