@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import html
+import json
+import os
 import socket
+import sqlite3
 import sys
 import threading
 import time
 from contextlib import closing
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
+from enum import Enum
+from typing import Callable, Optional
 from urllib.request import Request, urlopen
 
 import webview
@@ -130,26 +135,19 @@ SPLASH_HTML = """<!DOCTYPE html>
   <p class="status-text" id="status">Iniciando...</p>
 
   <script>
-    const steps = [
-      [15,  "Cargando módulos..."],
-      [35,  "Iniciando servidor..."],
-      [60,  "Verificando cámara..."],
-      [80,  "Preparando interfaz..."],
-      [95,  "Casi listo..."],
-    ];
-    let i = 0;
     const bar    = document.getElementById('bar');
     const status = document.getElementById('status');
 
-    function advance() {
-      if (i < steps.length) {
-        const [pct, msg] = steps[i++];
-        bar.style.width  = pct + '%';
-        status.textContent = msg;
-        setTimeout(advance, 600 + Math.random() * 400);
+    window.updateProgress = (pct, msg) => {
+      if (typeof pct === 'number') {
+        bar.style.width = pct + '%';
       }
-    }
-    advance();
+      if (msg) {
+        status.textContent = msg;
+      }
+    };
+
+    window.updateProgress(5, 'Iniciando...');
   </script>
 </body>
 </html>"""
@@ -227,9 +225,131 @@ def error_html(title: str, detail: str, hint: str = "") -> str:
 # ── Estado del servidor ───────────────────────────────────────────────────
 @dataclass
 class ServerState:
-    server:        Optional[object]           = None
-    thread:        Optional[threading.Thread] = None
-    startup_error: Optional[str]              = None
+    server: Optional[object] = None
+    thread: Optional[threading.Thread] = None
+    startup_error: Optional[str] = None
+
+
+# ── Validaciones de sistema ───────────────────────────────────────────────
+class CheckStatus(Enum):
+    SUCCESS = "success"
+    ERROR = "error"
+
+
+@dataclass
+class CheckResult:
+    name: str
+    status: CheckStatus
+    detail: str = ""
+
+
+def _update_splash(splash: webview.Window, pct: int, message: str) -> None:
+    try:
+        splash.evaluate_js(
+            "window.updateProgress(%s, %s);" % (pct, json.dumps(message))
+        )
+    except Exception:
+        pass
+
+
+def run_system_checks(update_cb: Callable[[int, str], None]) -> list[CheckResult]:
+    dependencies = [
+        ("cv2", "OpenCV"),
+        ("numpy", "NumPy"),
+        ("dlib", "dlib"),
+        ("PIL", "Pillow"),
+        ("face_recognition", "face_recognition"),
+        ("tkinter", "Tkinter"),
+    ]
+
+    checks: list[tuple[str, Callable[[], CheckResult]]] = []
+
+    for module_name, display_name in dependencies:
+        def _make_dep_check(mod_name: str, name: str) -> Callable[[], CheckResult]:
+            def _check() -> CheckResult:
+                try:
+                    __import__(mod_name)
+                    return CheckResult(name=name, status=CheckStatus.SUCCESS)
+                except Exception as exc:
+                    return CheckResult(
+                        name=name,
+                        status=CheckStatus.ERROR,
+                        detail=str(exc),
+                    )
+
+            return _check
+
+        checks.append(
+            (f"Dependencia: {display_name}", _make_dep_check(module_name, display_name))
+        )
+
+    def _check_camera() -> CheckResult:
+        try:
+            import cv2
+
+            cap = cv2.VideoCapture(0)
+            if cap.isOpened():
+                cap.release()
+                return CheckResult(name="Camara", status=CheckStatus.SUCCESS)
+            return CheckResult(
+                name="Camara",
+                status=CheckStatus.ERROR,
+                detail="No se pudo abrir la camara",
+            )
+        except Exception as exc:
+            return CheckResult(name="Camara", status=CheckStatus.ERROR, detail=str(exc))
+
+    def _check_display() -> CheckResult:
+        try:
+            import tkinter
+
+            root = tkinter.Tk()
+            root.withdraw()
+            root.destroy()
+            return CheckResult(name="Pantalla", status=CheckStatus.SUCCESS)
+        except Exception as exc:
+            return CheckResult(name="Pantalla", status=CheckStatus.ERROR, detail=str(exc))
+
+    def _check_servo() -> CheckResult:
+        try:
+            return CheckResult(name="Servomotor", status=CheckStatus.SUCCESS)
+        except Exception as exc:
+            return CheckResult(
+                name="Servomotor", status=CheckStatus.ERROR, detail=str(exc)
+            )
+
+    def _check_database() -> CheckResult:
+        try:
+            base_dir = os.path.dirname(os.path.dirname(__file__))
+            db_path = os.path.join(base_dir, "database", "sqlite", "students.db")
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            conn = sqlite3.connect(db_path)
+            conn.execute("SELECT 1")
+            conn.close()
+            return CheckResult(name="Base de Datos", status=CheckStatus.SUCCESS)
+        except Exception as exc:
+            return CheckResult(
+                name="Base de Datos", status=CheckStatus.ERROR, detail=str(exc)
+            )
+
+    checks.extend(
+        [
+            ("Verificando camara", _check_camera),
+            ("Verificando pantalla", _check_display),
+            ("Verificando servomotor", _check_servo),
+            ("Verificando base de datos", _check_database),
+        ]
+    )
+
+    results: list[CheckResult] = []
+    total = len(checks)
+    for index, (label, check_fn) in enumerate(checks, start=1):
+        pct = int(index / total * 70)
+        update_cb(pct, f"{label}...")
+        results.append(check_fn())
+        time.sleep(0.15)
+
+    return results
 
 
 # ── Utilidades de red ─────────────────────────────────────────────────────
@@ -319,24 +439,44 @@ def run_desktop_app() -> int:
     )
 
     def _on_splash_shown():
-        """Se ejecuta cuando el splash ya es visible; inicia Flask en paralelo."""
-        state.thread.start()
-        ready = wait_for_server()
+      _update_splash(splash, 8, "Verificando sistema...")
+      results = run_system_checks(
+        lambda pct, msg: _update_splash(splash, pct, msg)
+      )
+      errors = [r for r in results if r.status == CheckStatus.ERROR]
 
-        if not ready:
-            detail = state.startup_error or "Tiempo de espera agotado al iniciar Flask."
-            splash.load_html(
-                error_html(
-                    title="No se pudo iniciar",
-                    detail=detail,
-                    hint="Revisa la consola para más detalles del error.",
-                )
-            )
-            return
+      if errors:
+        detail_lines = [f"- {r.name}: {r.detail}" for r in errors if r.detail]
+        detail = "<br>".join(html.escape(line) for line in detail_lines)
+        splash.load_html(
+          error_html(
+            title="Verificacion fallida",
+            detail=detail
+            or "Se encontraron errores durante las verificaciones.",
+            hint="Instala las dependencias faltantes y vuelve a abrir la aplicacion.",
+          )
+        )
+        return
 
-        # 3. Flask listo → cargar la app real en la misma ventana
-        target_path = "/admin-panel/" if _admin_panel_dist_ready() else "/"
-        splash.load_url(f"http://{HOST}:{PORT}{target_path}")
+      _update_splash(splash, 80, "Iniciando servidor...")
+      state.thread.start()
+      ready = wait_for_server()
+
+      if not ready:
+        detail = state.startup_error or "Tiempo de espera agotado al iniciar Flask."
+        splash.load_html(
+          error_html(
+            title="No se pudo iniciar",
+            detail=detail,
+            hint="Revisa la consola para más detalles del error.",
+          )
+        )
+        return
+
+      # 3. Flask listo → cargar la app real en la misma ventana
+      _update_splash(splash, 96, "Preparando interfaz...")
+      target_path = "/admin-panel/" if _admin_panel_dist_ready() else "/"
+      splash.load_url(f"http://{HOST}:{PORT}{target_path}")
 
     # El evento `shown` dispara _on_splash_shown en un hilo separado
     splash.events.shown += _on_splash_shown
