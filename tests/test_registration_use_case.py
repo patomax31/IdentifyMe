@@ -13,10 +13,10 @@ class FakeRegistrationService:
     def initialize(self):
         self.initialized = True
 
-    def register_student_with_encoding(self, nombre, grado, letra, turno, encoding):
+    def register_student_with_encoding(self, nombre, grado, letra, turno, encoding, **kwargs):
         if self.error is not None:
             raise self.error
-        self.calls.append((nombre, grado, letra, turno, encoding))
+        self.calls.append((nombre, grado, letra, turno, encoding, kwargs))
         student_id = self.next_id
         self.next_id += 1
         return student_id
@@ -43,7 +43,7 @@ class RegistrationUseCaseTests(unittest.TestCase):
 
         self.assertTrue(result.success)
         self.assertEqual(1, result.student_id)
-        self.assertEqual([("Juan Perez", 2, "B", "VESPERTINO", "enc_1")], service.calls)
+        self.assertEqual([("Juan Perez", 2, "B", "VESPERTINO", "enc_1", {})], service.calls)
         self.assertEqual([(1, "enc_1")], pkl.saved)
 
     def test_zero_faces_returns_controlled_error(self):

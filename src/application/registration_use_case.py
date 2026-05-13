@@ -53,3 +53,36 @@ class RegistrationUseCase:
             student_id=student_id,
             message=f"Registro exitoso. {nombre} #{student_id} ({grado}{letra}-{turno}).",
         )
+
+    def register_from_three_encodings(
+        self,
+        nombre: str,
+        grado: int,
+        letra: str,
+        turno: str,
+        enc_front,
+        enc_left,
+        enc_right,
+        foto_jpeg_bytes: bytes,
+    ) -> RegistrationResult:
+        try:
+            student_id = self.registration_service.register_student_with_encoding(
+                nombre,
+                grado,
+                letra,
+                turno,
+                enc_front,
+                encoding_izquierdo=enc_left,
+                encoding_derecho=enc_right,
+                foto_jpeg_bytes=foto_jpeg_bytes,
+            )
+        except ValueError as exc:
+            return RegistrationResult(success=False, message=str(exc), student_id=None)
+
+        self.pkl_repository.save_student_biometric(student_id, enc_front)
+
+        return RegistrationResult(
+            success=True,
+            student_id=student_id,
+            message=f"Registro exitoso (3 ángulos + foto). {nombre} #{student_id} ({grado}{letra}-{turno}).",
+        )

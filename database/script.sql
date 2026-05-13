@@ -78,6 +78,9 @@ CREATE TABLE datos_biometricos (
     tipo_usuario TEXT NOT NULL CHECK (tipo_usuario IN ('ESTUDIANTE', 'PERSONAL')),
     id_usuario_ref INTEGER NOT NULL,
     vector_facial TEXT NOT NULL,
+    foto_credencial TEXT,
+    vector_perfil_izq TEXT,
+    vector_perfil_der TEXT,
     fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
