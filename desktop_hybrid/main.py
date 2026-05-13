@@ -19,6 +19,7 @@ from webview.errors import WebViewException
 from werkzeug.serving import make_server
 
 from flask_server import _admin_panel_dist_ready, create_app
+from src.hardware.hardware_integration import HardwareIntegration
 
 
 # ── Configuración de ventana ──────────────────────────────────────────────
@@ -433,50 +434,55 @@ def run_desktop_app() -> int:
         resizable=False,
     )
 
+    hardware = HardwareIntegration()
     state = ServerState()
     state.thread = threading.Thread(
         target=start_flask_server, args=(state,), daemon=True
     )
 
     def _on_splash_shown():
-      _update_splash(splash, 8, "Verificando sistema...")
-      results = run_system_checks(
-        lambda pct, msg: _update_splash(splash, pct, msg)
-      )
-      errors = [r for r in results if r.status == CheckStatus.ERROR]
-
-      if errors:
-        detail_lines = [f"- {r.name}: {r.detail}" for r in errors if r.detail]
-        detail = "<br>".join(html.escape(line) for line in detail_lines)
-        splash.load_html(
-          error_html(
-            title="Verificacion fallida",
-            detail=detail
-            or "Se encontraron errores durante las verificaciones.",
-            hint="Instala las dependencias faltantes y vuelve a abrir la aplicacion.",
-          )
+        hardware.startup()
+        _update_splash(splash, 8, "Verificando sistema...")
+        results = run_system_checks(
+            lambda pct, msg: _update_splash(splash, pct, msg)
         )
-        return
+        errors = [r for r in results if r.status == CheckStatus.ERROR]
 
-      _update_splash(splash, 80, "Iniciando servidor...")
-      state.thread.start()
-      ready = wait_for_server()
+        if errors:
+            hardware.error()
+            detail_lines = [f"- {r.name}: {r.detail}" for r in errors if r.detail]
+            detail = "<br>".join(html.escape(line) for line in detail_lines)
+            splash.load_html(
+                error_html(
+                    title="Verificacion fallida",
+                    detail=detail
+                    or "Se encontraron errores durante las verificaciones.",
+                    hint="Instala las dependencias faltantes y vuelve a abrir la aplicacion.",
+                )
+            )
+            return
 
-      if not ready:
-        detail = state.startup_error or "Tiempo de espera agotado al iniciar Flask."
-        splash.load_html(
-          error_html(
-            title="No se pudo iniciar",
-            detail=detail,
-            hint="Revisa la consola para más detalles del error.",
-          )
-        )
-        return
+        _update_splash(splash, 80, "Iniciando servidor...")
+        state.thread.start()
+        ready = wait_for_server()
 
-      # 3. Flask listo → cargar la app real en la misma ventana
-      _update_splash(splash, 96, "Preparando interfaz...")
-      target_path = "/admin-panel/" if _admin_panel_dist_ready() else "/"
-      splash.load_url(f"http://{HOST}:{PORT}{target_path}")
+        if not ready:
+            hardware.error()
+            detail = state.startup_error or "Tiempo de espera agotado al iniciar Flask."
+            splash.load_html(
+                error_html(
+                    title="No se pudo iniciar",
+                    detail=detail,
+                    hint="Revisa la consola para más detalles del error.",
+                )
+            )
+            return
+
+        # 3. Flask listo → cargar la app real en la misma ventana
+        _update_splash(splash, 96, "Preparando interfaz...")
+        target_path = "/admin-panel/" if _admin_panel_dist_ready() else "/"
+        splash.load_url(f"http://{HOST}:{PORT}{target_path}")
+        hardware.success()
 
     # El evento `shown` dispara _on_splash_shown en un hilo separado
     splash.events.shown += _on_splash_shown
@@ -489,7 +495,8 @@ def run_desktop_app() -> int:
         print("[HINT] Instala dependencias: pip install qtpy PyQt6 PyQt6-WebEngine")
         return 1
     finally:
-        stop_server(state)
+      hardware.cleanup()
+      stop_server(state)
 
     return 0
 
