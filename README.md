@@ -91,7 +91,7 @@ source venv/bin/activate
 
 ```bash
 pip install --upgrade pip
-pip install opencv-python face-recognition dlib numpy
+pip install opencv-python face-recognition dlib numpy pygame
 ```
 
 > 📌 `face-recognition` depende de `dlib`, que requiere compilación. En Raspberry Pi esto puede tomar 10-20 minutos. Sea paciente.

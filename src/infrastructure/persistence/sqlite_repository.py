@@ -21,8 +21,8 @@ class SQLiteRepository:
     def create_student(self, nombre: str, grado: int, letra: str, turno: str) -> int:
         return create_student(nombre, grado, letra, turno)
 
-    def save_student_biometric(self, id_estudiante: int, encoding) -> None:
-        save_student_biometric(id_estudiante, encoding)
+    def save_student_biometric(self, id_estudiante: int, encoding, **kwargs) -> None:
+        save_student_biometric(id_estudiante, encoding, **kwargs)
 
     def log_student_access(self, id_estudiante: int, acceso_concedido: bool) -> None:
         log_access(id_estudiante, acceso_concedido, tipo_usuario="ESTUDIANTE")
