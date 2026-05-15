@@ -205,12 +205,17 @@ let loginStream    = null;
 let loginInterval  = null;
 let loginLivId     = null;
 let loginLivOk     = false;
+let loginDeniedCount = 0;
 
 const loginVideo   = document.getElementById('loginVideo');
 const loginCanvas  = document.getElementById('loginCanvas');
 const loginStart   = document.getElementById('loginStart');
 const loginStop    = document.getElementById('loginStop');
 const loginMsg     = document.getElementById('loginMessage');
+const loginMsgHelp = document.getElementById('loginMessageHelp');
+const loginHelpModal = document.getElementById('loginHelpModal');
+const loginHelpOverlay = document.getElementById('loginHelpOverlay');
+const loginHelpClose = document.getElementById('loginHelpClose');
 const camOverlay   = document.getElementById('cameraOverlay');
 const livDot       = document.getElementById('loginLivenessDot');
 const livText      = document.getElementById('loginLivenessText');
@@ -279,6 +284,11 @@ function resetAccessStep() {
   stopLoginCamera();
   setLivUi('init', t('liveness_init'));
   if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
+  if (loginMsgHelp) {
+    loginMsgHelp.classList.add('hidden');
+    loginMsgHelp.classList.remove('is-clickable');
+  }
+  loginDeniedCount = 0;
 }
 
 document.getElementById('btnScanAnother')?.addEventListener('click', resetAccessStep);
@@ -316,10 +326,29 @@ async function captureAndVerify() {
     });
     const data = await res.json();
     if (loginMsg) { loginMsg.textContent = data.message||''; loginMsg.className = 'feedback '+(data.state||''); }
-    if (data.state === 'granted' || data.state === 'denied') {
+    if (data.state === 'granted') {
       stopLoginCamera();
       renderAccessResult(data);
       showAccessStep(2);
+      if (loginMsgHelp) {
+        loginMsgHelp.classList.add('hidden');
+        loginMsgHelp.classList.remove('is-clickable');
+      }
+      loginDeniedCount = 0;
+    }
+    if (data.state === 'denied') {
+      showAccessStep(1);
+      if (loginMsg) {
+        loginMsg.textContent = data.message || t('access_denied') || 'Acceso denegado.';
+        loginMsg.className = 'feedback denied';
+      }
+      loginDeniedCount += 1;
+      if (loginMsgHelp) {
+        loginMsgHelp.classList.remove('hidden');
+        if (loginDeniedCount >= 3) {
+          loginMsgHelp.classList.add('is-clickable');
+        }
+      }
     }
   } catch (_) {}
 }
@@ -346,6 +375,11 @@ loginStart?.addEventListener('click', async () => {
     if (camOverlay)  camOverlay.classList.add('hidden');
     if (loginStart)  loginStart.disabled   = true;
     if (loginStop)   loginStop.disabled    = false;
+    if (loginMsgHelp) {
+      loginMsgHelp.classList.add('hidden');
+      loginMsgHelp.classList.remove('is-clickable');
+    }
+    loginDeniedCount = 0;
 
     loginInterval = setInterval(async () => {
       if (!loginLivOk) await pushLivFrame();
@@ -360,6 +394,33 @@ loginStop?.addEventListener('click', () => {
   stopLoginCamera();
   setLivUi('off', t('liveness_stopped')||'Verificación detenida.');
   if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
+  if (loginMsgHelp) {
+    loginMsgHelp.classList.add('hidden');
+    loginMsgHelp.classList.remove('is-clickable');
+  }
+  loginDeniedCount = 0;
+});
+
+function openLoginHelpModal() {
+  if (!loginHelpModal) return;
+  loginHelpModal.classList.remove('hidden');
+}
+
+function closeLoginHelpModal() {
+  if (!loginHelpModal) return;
+  loginHelpModal.classList.add('hidden');
+}
+
+loginMsgHelp?.addEventListener('click', () => {
+  if (loginMsgHelp?.classList.contains('is-clickable')) {
+    openLoginHelpModal();
+  }
+});
+
+loginHelpOverlay?.addEventListener('click', closeLoginHelpModal);
+loginHelpClose?.addEventListener('click', closeLoginHelpModal);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeLoginHelpModal();
 });
 
 // ════ REGISTRO BIOMÉTRICO ════
