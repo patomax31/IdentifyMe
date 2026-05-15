@@ -93,6 +93,7 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install opencv-python face-recognition dlib numpy pygame
 pip install -r requirements.txt
+pip install deep_translator
 ```
 
 > 📌 `face-recognition` depende de `dlib`, que requiere compilación. En Raspberry Pi esto puede tomar 10-20 minutos. Sea paciente.
