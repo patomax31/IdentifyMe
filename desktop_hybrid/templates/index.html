@@ -54,6 +54,8 @@
         <span id="langFlag">🇲🇽</span>
         <span id="langLabel">ES</span>
       </button>
+      <!-- BOTÓN MODO RELOJ -->
+      <button id="clockModeBtn" class="clock-mode-btn" aria-label="Modo reloj" title="Modo reloj">🕐</button>
       <div class="topbar-clock">
         <div id="clockH" class="clock-h">--:--</div>
         <div id="clockD" class="clock-d"></div>
@@ -160,6 +162,7 @@
 
       </section>
 
+      <!-- MODAL AYUDA LOGIN -->
       <div id="loginHelpModal" class="help-modal hidden" role="dialog" aria-modal="true" aria-labelledby="loginHelpTitle">
         <div class="help-modal__overlay" id="loginHelpOverlay"></div>
         <div class="help-modal__card">
@@ -327,6 +330,35 @@
     </main>
   </div>
 
+  <!-- ══════════════════════════════════════════════════
+       CLOCK OVERLAY — panel de reloj pantalla completa
+       ══════════════════════════════════════════════════ -->
+  <div id="clockOverlay" class="clock-overlay hidden">
+
+    <div class="clock-overlay__grid"></div>
+    <div class="clock-overlay__glow"></div>
+
+    <span class="clock-overlay__corner clock-overlay__corner--tl">VerifyMe</span>
+    <span class="clock-overlay__corner clock-overlay__corner--tr">Sistema biométrico escolar</span>
+    <span class="clock-overlay__corner clock-overlay__corner--bl clock-overlay__seconds" id="covSeconds">00s</span>
+
+    
+
+    <div class="clock-overlay__main">
+      <div class="clock-overlay__time">
+        <span id="covH">--</span><span class="clock-overlay__sep">:</span><span id="covM">--</span>
+      </div>
+      <div class="clock-overlay__ampm" id="covAMPM">AM</div>
+      <div class="clock-overlay__date" id="covDate">cargando...</div>
+      <div class="clock-overlay__divider"></div>
+      <div class="clock-overlay__status">
+        <div class="clock-overlay__dot"></div>
+        <span id="covStatusTxt">SISTEMA EN LÍNEA · CÁMARA ACTIVA</span>
+      </div>
+    </div>
+
+  </div>
+
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
-</html> 
+</html>

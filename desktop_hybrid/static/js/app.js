@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   IdentifyMe · panel.js  — navegación, drawer, cámara, admin
+   IdentifyMe · panel.js  — navegación, drawer, cámara, admin, clock overlay
 ═══════════════════════════════════════════════════════════════════════ */
 
 // ════ I18N ════
@@ -36,6 +36,8 @@ const I18N = {
     students_mgmt:'Gestión de estudiantes.',
     status_active:'Sistema activo', status_no_users:'Sin usuarios registrados', status_no_conn:'Sin conexión',
     users_loaded:'usuarios cargados', no_camera:'No se pudo acceder a la cámara.',
+    clock_mode:'Modo reloj', clock_status:'SISTEMA EN LÍNEA · CÁMARA ACTIVA',
+    clock_back:'✕ volver al sistema',
   },
   en: {
     nav_home:'Home', nav_access:'Facial access', nav_register:'Facial register', nav_admin:'Admin panel',
@@ -69,6 +71,8 @@ const I18N = {
     students_mgmt:'Student management.',
     status_active:'System active', status_no_users:'No registered users', status_no_conn:'No connection',
     users_loaded:'users loaded', no_camera:'Could not access camera.',
+    clock_mode:'Clock mode', clock_status:'SYSTEM ONLINE · CAMERA ACTIVE',
+    clock_back:'✕ back to system',
   },
 };
 
@@ -88,6 +92,10 @@ function applyLang(lang) {
   if (flagEl)  flagEl.textContent  = lang === 'es' ? '🇲🇽' : '🇺🇸';
   if (labelEl) labelEl.textContent = lang === 'es' ? 'ES' : 'EN';
   updateRegAngleUi();
+  const closeTxt = document.getElementById('covCloseTxt');
+  const statusTxt = document.getElementById('covStatusTxt');
+  if (closeTxt)  closeTxt.textContent  = t('clock_back');
+  if (statusTxt) statusTxt.textContent = t('clock_status');
 }
 
 document.getElementById('langBtn')?.addEventListener('click', () => {
@@ -112,14 +120,15 @@ function closeDrawer() {
 document.getElementById('hamburger')?.addEventListener('click', openDrawer);
 document.getElementById('drawerClose')?.addEventListener('click', closeDrawer);
 drawerOverlay?.addEventListener('click', closeDrawer);
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeDrawer(); closeClockOverlay(); }
+});
 
 // ════ NAVEGACIÓN ════
 const allViews = document.querySelectorAll('.view');
 const navBtns  = document.querySelectorAll('.nav-btn[data-view]');
 
 function showView(viewId) {
-  // Detener cámaras al cambiar de vista
   if (viewId !== 'access')   stopLoginCamera();
   if (viewId !== 'register') stopRegCamera();
 
@@ -138,21 +147,18 @@ function showView(viewId) {
   closeDrawer();
 }
 
-// Nav drawer
 navBtns.forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
 
-// Quick nav home
 document.querySelectorAll('.quick-nav-btn[data-goto]').forEach(b => {
   b.addEventListener('click', () => showView(b.dataset.goto));
 });
 
-// Parámetro ?view=xxx en URL
 const urlView = new URLSearchParams(window.location.search).get('view');
 if (urlView && ['home','access','register','admin'].includes(urlView)) {
   showView(urlView);
 }
 
-// ════ RELOJ ════
+// ════ RELOJ TOPBAR ════
 function updateClock() {
   const locale = currentLang === 'es' ? 'es-MX' : 'en-US';
   const now  = new Date();
@@ -165,6 +171,103 @@ function updateClock() {
 }
 updateClock();
 setInterval(updateClock, 1000);
+
+// ════ CLOCK OVERLAY ════
+const clockOverlay = document.getElementById('clockOverlay');
+let clockInterval   = null;
+let inactivityTimer = null;
+const INACTIVITY_MS = 10000; // 10 segundos de inactividad
+
+const DAYS_ES   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const DAYS_EN   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function tickClockOverlay() {
+  const now  = new Date();
+  const h    = now.getHours();
+  const m    = now.getMinutes();
+  const s    = now.getSeconds();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12  = h % 12 || 12;
+
+  const days   = currentLang === 'es' ? DAYS_ES   : DAYS_EN;
+  const months = currentLang === 'es' ? MONTHS_ES : MONTHS_EN;
+  const dateStr = currentLang === 'es'
+    ? `${days[now.getDay()]}, ${now.getDate()} de ${months[now.getMonth()]} ${now.getFullYear()}`
+    : `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+
+  const covH  = document.getElementById('covH');
+  const covM  = document.getElementById('covM');
+  const covAP = document.getElementById('covAMPM');
+  const covD  = document.getElementById('covDate');
+  const covS  = document.getElementById('covSeconds');
+
+  if (covH)  covH.textContent  = String(h12).padStart(2,'0');
+  if (covM)  covM.textContent  = String(m).padStart(2,'0');
+  if (covAP) covAP.textContent = ampm;
+  if (covD)  covD.textContent  = dateStr;
+  if (covS)  covS.textContent  = String(s).padStart(2,'0') + 's';
+}
+
+function openClockOverlay() {
+  if (!clockOverlay) return;
+  stopInactivityTimer();
+  clockOverlay.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  tickClockOverlay();
+  clockInterval = setInterval(tickClockOverlay, 1000);
+}
+
+function closeClockOverlay() {
+  if (!clockOverlay) return;
+  clockOverlay.classList.add('hidden');
+  document.body.style.overflow = '';
+  clearInterval(clockInterval);
+  clockInterval = null;
+  resetInactivityTimer();
+}
+
+// ── Timer de inactividad ──
+function resetInactivityTimer() {
+  clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(() => {
+    openClockOverlay();
+  }, INACTIVITY_MS);
+}
+
+function stopInactivityTimer() {
+  clearTimeout(inactivityTimer);
+  inactivityTimer = null;
+}
+
+// Reiniciar timer con cualquier actividad del usuario (solo cuando el overlay está oculto)
+['click', 'touchstart', 'mousemove', 'keydown', 'scroll', 'pointerdown'].forEach(ev => {
+  document.addEventListener(ev, () => {
+    if (!clockOverlay?.classList.contains('hidden')) return; // reloj visible, ignorar
+    resetInactivityTimer();
+  }, { passive: true });
+});
+
+// Tocar CUALQUIER parte del overlay lo cierra
+clockOverlay?.addEventListener('click', () => {
+  closeClockOverlay();
+});
+
+// Botón en topbar abre el reloj manualmente
+document.getElementById('clockModeBtn')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  openClockOverlay();
+});
+
+// Botón cerrar dentro del overlay
+document.getElementById('clockOverlayClose')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  closeClockOverlay();
+});
+
+// Arrancar en modo reloj automáticamente al cargar la página
+openClockOverlay();
 
 // ════ ESTADO DEL SISTEMA ════
 async function fetchSystemStatus() {
@@ -201,24 +304,24 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
 });
 
 // ════ ACCESO FACIAL ════
-let loginStream    = null;
-let loginInterval  = null;
-let loginLivId     = null;
-let loginLivOk     = false;
+let loginStream      = null;
+let loginInterval    = null;
+let loginLivId       = null;
+let loginLivOk       = false;
 let loginDeniedCount = 0;
 
-const loginVideo   = document.getElementById('loginVideo');
-const loginCanvas  = document.getElementById('loginCanvas');
-const loginStart   = document.getElementById('loginStart');
-const loginStop    = document.getElementById('loginStop');
-const loginMsg     = document.getElementById('loginMessage');
-const loginMsgHelp = document.getElementById('loginMessageHelp');
-const loginHelpModal = document.getElementById('loginHelpModal');
-const loginHelpOverlay = document.getElementById('loginHelpOverlay');
-const loginHelpClose = document.getElementById('loginHelpClose');
-const camOverlay   = document.getElementById('cameraOverlay');
-const livDot       = document.getElementById('loginLivenessDot');
-const livText      = document.getElementById('loginLivenessText');
+const loginVideo      = document.getElementById('loginVideo');
+const loginCanvas     = document.getElementById('loginCanvas');
+const loginStart      = document.getElementById('loginStart');
+const loginStop       = document.getElementById('loginStop');
+const loginMsg        = document.getElementById('loginMessage');
+const loginMsgHelp    = document.getElementById('loginMessageHelp');
+const loginHelpModal  = document.getElementById('loginHelpModal');
+const loginHelpOverlay= document.getElementById('loginHelpOverlay');
+const loginHelpClose  = document.getElementById('loginHelpClose');
+const camOverlay      = document.getElementById('cameraOverlay');
+const livDot          = document.getElementById('loginLivenessDot');
+const livText         = document.getElementById('loginLivenessText');
 
 function setLivUi(state, text) {
   if (livText) livText.textContent = text || '';
@@ -345,9 +448,7 @@ async function captureAndVerify() {
       loginDeniedCount += 1;
       if (loginMsgHelp) {
         loginMsgHelp.classList.remove('hidden');
-        if (loginDeniedCount >= 3) {
-          loginMsgHelp.classList.add('is-clickable');
-        }
+        if (loginDeniedCount >= 3) loginMsgHelp.classList.add('is-clickable');
       }
     }
   } catch (_) {}
@@ -359,14 +460,13 @@ loginStart?.addEventListener('click', async () => {
     loginLivOk = false; loginLivId = null;
     setLivUi('init', t('liveness_connecting')||'Conectando…');
 
-    // Intentar liveness; si falla el endpoint, continuar sin él
     try {
       const ls = await fetch('/api/login/liveness/start', { method:'POST' });
       const lj = await ls.json();
       if (lj.ok && lj.session_id) {
         loginLivId = lj.session_id;
       } else {
-        loginLivOk = true; // sin liveness, ir directo a verificar
+        loginLivOk = true;
       }
     } catch (_) { loginLivOk = true; }
 
@@ -401,27 +501,14 @@ loginStop?.addEventListener('click', () => {
   loginDeniedCount = 0;
 });
 
-function openLoginHelpModal() {
-  if (!loginHelpModal) return;
-  loginHelpModal.classList.remove('hidden');
-}
-
-function closeLoginHelpModal() {
-  if (!loginHelpModal) return;
-  loginHelpModal.classList.add('hidden');
-}
+function openLoginHelpModal()  { loginHelpModal?.classList.remove('hidden'); }
+function closeLoginHelpModal() { loginHelpModal?.classList.add('hidden'); }
 
 loginMsgHelp?.addEventListener('click', () => {
-  if (loginMsgHelp?.classList.contains('is-clickable')) {
-    openLoginHelpModal();
-  }
+  if (loginMsgHelp?.classList.contains('is-clickable')) openLoginHelpModal();
 });
-
 loginHelpOverlay?.addEventListener('click', closeLoginHelpModal);
 loginHelpClose?.addEventListener('click', closeLoginHelpModal);
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeLoginHelpModal();
-});
 
 // ════ REGISTRO BIOMÉTRICO ════
 let regStream    = null;
@@ -447,9 +534,9 @@ function updateRegAngleUi() {
   document.querySelectorAll('.angle-step').forEach((el, i) => {
     el.classList.remove('angle-step--active','angle-step--done');
     const numEl = el.querySelector('.angle-step__num');
-    if (i < regStepIndex) { el.classList.add('angle-step--done');   if (numEl) numEl.textContent = '✓'; }
+    if (i < regStepIndex)        { el.classList.add('angle-step--done');   if (numEl) numEl.textContent = '✓'; }
     else if (i === regStepIndex) { el.classList.add('angle-step--active'); if (numEl) numEl.textContent = i+1; }
-    else { if (numEl) numEl.textContent = i+1; }
+    else                         { if (numEl) numEl.textContent = i+1; }
   });
   const hint  = document.getElementById('regAngleHint');
   const label = document.getElementById('regCaptureLabel');
@@ -468,7 +555,6 @@ function stopRegCamera() {
   if (regCamOv)   regCamOv.classList.remove('hidden');
 }
 
-// Paso 1 → 2
 document.getElementById('regGoToCamera')?.addEventListener('click', () => {
   const nombre = document.getElementById('regNombre')?.value.trim();
   const grado  = document.getElementById('regGrado')?.value;
@@ -488,7 +574,6 @@ document.getElementById('regGoToCamera')?.addEventListener('click', () => {
   updateRegAngleUi();
 });
 
-// Volver al paso 1
 document.getElementById('btnBackToStep1')?.addEventListener('click', () => {
   stopRegCamera();
   regStepIndex = 0;
@@ -527,7 +612,6 @@ regCapture?.addEventListener('click', async () => {
     return;
   }
 
-  // Último ángulo → enviar
   if (regMsg) { regMsg.textContent = t('reg_sending')||'Enviando…'; regMsg.className = 'feedback waiting'; }
   try {
     const res  = await fetch('/api/registro', {
@@ -688,5 +772,5 @@ document.getElementById('adminCreate')?.addEventListener('click', async () => {
   } catch (_) { if (msg) { msg.textContent='Error.'; msg.className='feedback denied'; } }
 });
 
-// Aplicar idioma inicial
+// ════ INIT ════
 applyLang(currentLang);
