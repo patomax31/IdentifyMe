@@ -307,6 +307,7 @@
           <div class="row">
             <button id="cfgLoad"><span>⬇</span><span>Cargar</span></button>
             <button id="cfgSave"><span>💾</span><span>Guardar</span></button>
+            <button id="cfgTest"><span>🧪</span><span>Probar modelo</span></button>
           </div>
           <p id="cfgMsg" class="feedback waiting">Configuración del modelo.</p>
         </section>
@@ -334,6 +335,33 @@
       </section>
 
     </main>
+  </div>
+
+  <!-- MODAL PRUEBA MODELO -->
+  <div id="modelTestModal" class="model-test hidden" role="dialog" aria-modal="true" aria-labelledby="modelTestTitle">
+    <div class="model-test__overlay" id="modelTestOverlay"></div>
+    <div class="model-test__panel">
+      <div class="model-test__head">
+        <h3 id="modelTestTitle">Prueba del modelo</h3>
+        <button id="modelTestClose" class="icon-btn" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="model-test__body">
+        <div class="model-test__video">
+          <video id="modelTestVideo" autoplay playsinline muted></video>
+              <canvas id="modelTestCanvas" class="model-test__canvas"></canvas>
+        </div>
+            <div class="model-test__stats">
+              <div class="model-test__stat"><span>FPS</span><strong id="modelTestFps">--</strong></div>
+              <div class="model-test__stat"><span>Rostros</span><strong id="modelTestFaces">--</strong></div>
+            </div>
+        <div class="model-test__info">
+          <div><strong>Scale:</strong> <span id="modelTestScale">--</span></div>
+          <div><strong>Tolerance:</strong> <span id="modelTestTolerance">--</span></div>
+          <div><strong>Cooldown:</strong> <span id="modelTestCooldown">--</span> s</div>
+        </div>
+        <p class="model-test__note">Estas variables son las ultimas ajustadas y guardadas.</p>
+      </div>
+    </div>
   </div>
 
   <!-- ══════════════════════════════════════════════════
