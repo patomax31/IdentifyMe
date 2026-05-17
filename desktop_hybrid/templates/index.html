@@ -186,7 +186,7 @@
         <div class="step-panel card" id="reg-step1">
           <div class="step-badge" data-i18n="step1of2">Paso 1 de 2</div>
           <h2 data-i18n="reg_title_data">Datos del alumno</h2>
-          <p class="muted sm" data-i18n="reg_sub_data">Ingresa la información escolar antes de capturar la biometría.</p>
+          <p class="muted sm" data-i18n="reg_sub_data">Ingresa la información del estudiante antes de capturar su rostro.</p>
 
           <div class="form-grid-2" style="margin-top:14px">
             <label><span data-i18n="field_name">Nombre completo</span>
@@ -197,7 +197,13 @@
                 <select id="regGrado"><option>1</option><option>2</option><option>3</option></select>
               </label>
               <label><span data-i18n="field_group">Grupo</span>
-                <input id="regLetra" type="text" maxlength="1" placeholder="A">
+                <select id="regLetra">
+                  <option>A</option>
+                  <option>B</option>
+                  <option>C</option>
+                  <option>D</option>
+                  <option>E</option>
+                  <option>F</option></select>
               </label>
             </div>
             <label><span data-i18n="field_shift">Turno</span>
