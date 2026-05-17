@@ -702,30 +702,144 @@ document.getElementById('admCreate')?.addEventListener('click', async () => {
 document.getElementById('cfgLoad')?.addEventListener('click', async () => {
   const msg = document.getElementById('cfgMsg');
   try {
-    const res  = await fetch('/api/admin/config');
+    const res  = await fetch('/api/admin/model-config');
     const data = await res.json();
-    if (data.scale)     document.getElementById('cfgScale').value     = data.scale;
-    if (data.tolerance) document.getElementById('cfgTolerance').value = data.tolerance;
-    if (data.cooldown)  document.getElementById('cfgCooldown').value  = data.cooldown;
+    const cfg = data.config || {};
+    if (cfg.scale != null)     document.getElementById('cfgScale').value     = cfg.scale;
+    if (cfg.tolerance != null) document.getElementById('cfgTolerance').value = cfg.tolerance;
+    if (cfg.cooldown_seconds != null)  document.getElementById('cfgCooldown').value  = cfg.cooldown_seconds;
     if (msg) { msg.textContent='Configuración cargada.'; msg.className='feedback granted'; }
+    updateModelTestValues();
   } catch (_) {}
 });
 
 document.getElementById('cfgSave')?.addEventListener('click', async () => {
   const msg = document.getElementById('cfgMsg');
   try {
-    const res  = await fetch('/api/admin/config', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+    const res  = await fetch('/api/admin/model-config', {
+      method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         scale:     parseFloat(document.getElementById('cfgScale')?.value),
         tolerance: parseFloat(document.getElementById('cfgTolerance')?.value),
-        cooldown:  parseFloat(document.getElementById('cfgCooldown')?.value),
+        cooldown_seconds:  parseFloat(document.getElementById('cfgCooldown')?.value),
       }),
     });
     const data = await res.json();
     if (msg) { msg.textContent = data.message||(data.ok?'Guardado.':'Error'); msg.className='feedback '+(data.ok?'granted':'denied'); }
+    if (data.ok) updateModelTestValues();
   } catch (_) {}
 });
+
+// ════ ADMIN: PRUEBA MODELO ════
+let modelTestStream = null;
+const modelTestModal = document.getElementById('modelTestModal');
+const modelTestOverlay = document.getElementById('modelTestOverlay');
+const modelTestClose = document.getElementById('modelTestClose');
+const modelTestVideo = document.getElementById('modelTestVideo');
+const modelTestCanvas = document.getElementById('modelTestCanvas');
+const modelTestFps = document.getElementById('modelTestFps');
+const modelTestFaces = document.getElementById('modelTestFaces');
+const modelTestScale = document.getElementById('modelTestScale');
+const modelTestTolerance = document.getElementById('modelTestTolerance');
+const modelTestCooldown = document.getElementById('modelTestCooldown');
+let modelTestDetector = null;
+let modelTestAnimId = null;
+let modelTestFrames = 0;
+let modelTestLastTick = 0;
+
+function updateModelTestValues() {
+  const scale = document.getElementById('cfgScale')?.value;
+  const tolerance = document.getElementById('cfgTolerance')?.value;
+  const cooldown = document.getElementById('cfgCooldown')?.value;
+  if (modelTestScale) modelTestScale.textContent = scale || '--';
+  if (modelTestTolerance) modelTestTolerance.textContent = tolerance || '--';
+  if (modelTestCooldown) modelTestCooldown.textContent = cooldown || '--';
+}
+
+async function openModelTest() {
+  if (!modelTestModal) return;
+  updateModelTestValues();
+  modelTestModal.classList.remove('hidden');
+  try {
+    modelTestStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    if (modelTestVideo) modelTestVideo.srcObject = modelTestStream;
+    if ('FaceDetector' in window) {
+      modelTestDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 3 });
+    } else {
+      modelTestDetector = null;
+    }
+    modelTestFrames = 0;
+    modelTestLastTick = performance.now();
+    startModelTestLoop();
+  } catch (_) {}
+}
+
+function closeModelTest() {
+  if (modelTestModal) modelTestModal.classList.add('hidden');
+  if (modelTestAnimId) cancelAnimationFrame(modelTestAnimId);
+  modelTestAnimId = null;
+  if (modelTestStream) modelTestStream.getTracks().forEach(t => t.stop());
+  modelTestStream = null;
+  if (modelTestVideo) modelTestVideo.srcObject = null;
+  if (modelTestCanvas) {
+    const ctx = modelTestCanvas.getContext('2d');
+    ctx?.clearRect(0, 0, modelTestCanvas.width, modelTestCanvas.height);
+  }
+  if (modelTestFps) modelTestFps.textContent = '--';
+  if (modelTestFaces) modelTestFaces.textContent = '--';
+}
+
+async function startModelTestLoop() {
+  if (!modelTestVideo || !modelTestCanvas) return;
+  const ctx = modelTestCanvas.getContext('2d');
+  const loop = async () => {
+    if (!modelTestModal || modelTestModal.classList.contains('hidden')) return;
+    if (modelTestVideo.readyState < 2) {
+      modelTestAnimId = requestAnimationFrame(loop);
+      return;
+    }
+
+    modelTestCanvas.width = modelTestVideo.videoWidth;
+    modelTestCanvas.height = modelTestVideo.videoHeight;
+    ctx?.clearRect(0, 0, modelTestCanvas.width, modelTestCanvas.height);
+
+    let facesCount = 0;
+    if (modelTestDetector && ctx) {
+      try {
+        const faces = await modelTestDetector.detect(modelTestVideo);
+        facesCount = faces.length;
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(0, 255, 140, 0.9)';
+        ctx.fillStyle = 'rgba(0, 255, 140, 0.12)';
+        faces.forEach(face => {
+          const box = face.boundingBox;
+          ctx.strokeRect(box.x, box.y, box.width, box.height);
+          ctx.fillRect(box.x, box.y, box.width, box.height);
+        });
+      } catch (_) {
+        facesCount = 0;
+      }
+    }
+
+    modelTestFrames += 1;
+    const now = performance.now();
+    const elapsed = now - modelTestLastTick;
+    if (elapsed >= 500) {
+      const fps = Math.round((modelTestFrames / elapsed) * 1000);
+      if (modelTestFps) modelTestFps.textContent = String(fps);
+      if (modelTestFaces) modelTestFaces.textContent = String(facesCount);
+      modelTestFrames = 0;
+      modelTestLastTick = now;
+    }
+
+    modelTestAnimId = requestAnimationFrame(loop);
+  };
+  modelTestAnimId = requestAnimationFrame(loop);
+}
+
+document.getElementById('cfgTest')?.addEventListener('click', openModelTest);
+modelTestOverlay?.addEventListener('click', closeModelTest);
+modelTestClose?.addEventListener('click', closeModelTest);
 
 // ════ ADMIN: ADMINS ════
 async function loadAdmins() {
